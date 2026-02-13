@@ -1,0 +1,23 @@
+# Malaria YOLOv11 - Training configuration
+# For reproducibility: set seed and document all hyperparameters
+
+seed: 42
+
+# Data
+data:
+  nih_polygon_path: "../NIH-NLM-ThinBloodSmearsPf/Polygon Set"
+  output_path: "data/processed"
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+
+# Training (YOLOv11)
+training:
+  model: "yolo11n.pt"  # n=nano, s=small, m=medium, l=large
+  epochs: 100
+  batch: 16
+  imgsz: 640
+  patience: 20  # early stopping
+  save: true
+  project: "runs/detect"
+  name: "malaria"

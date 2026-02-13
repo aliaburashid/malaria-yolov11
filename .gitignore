@@ -1,0 +1,30 @@
+# Data (generated; re-run scripts to reproduce)
+data/processed/
+data/verify_samples/
+
+# Training outputs and weights
+runs/
+*.pt
+yolo11n.pt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+*.egg-info/
+.eggs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+train.log

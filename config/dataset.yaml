@@ -1,0 +1,13 @@
+# YOLOv11 dataset config for NIH malaria (parasitized vs uninfected RBCs)
+# Path is relative to this file; use absolute path if needed
+
+path: data/processed
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: parasitized
+  1: uninfected
+
+nc: 2
