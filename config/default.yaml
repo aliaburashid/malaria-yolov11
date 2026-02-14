@@ -1,9 +1,14 @@
-# Malaria YOLOv11 - Training configuration
-# For reproducibility: set seed and document all hyperparameters
+# Malaria YOLOv11 - Training configuration (Condition A and B)
+# Reproducibility: fixed seed; hyperparameters documented per Ultralytics
+# Source: https://docs.ultralytics.com/modes/train/ https://github.com/ultralytics/ultralytics
 
+# Random seed for reproducibility (NumPy, PyTorch, Python)
+# Reference: machine learning reproducibility best practice
 seed: 42
 
-# Data
+# Data paths and split ratios; used by create_splits.py and convert_to_yolo.py
+# NIH polygon annotations: https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets
+# Split convention: 70/15/15 train/val/test (common in ML; sklearn train_test_split)
 data:
   nih_polygon_path: "../NIH-NLM-ThinBloodSmearsPf/Polygon Set"
   output_path: "data/processed"
@@ -11,13 +16,22 @@ data:
   val_ratio: 0.15
   test_ratio: 0.15
 
-# Training (YOLOv11)
+# YOLOv11 training hyperparameters; passed to model.train()
+# Ultralytics docs: https://docs.ultralytics.com/usage/cfg/
+# YOLO11n: nano variant; n/s/m/l = nano/small/medium/large
 training:
-  model: "yolo11n.pt"  # n=nano, s=small, m=medium, l=large
+  model: "yolo11n.pt"
   epochs: 100
-  batch: 16
-  imgsz: 640
-  patience: 20  # early stopping
+  batch: 16  # reduce to 8 on CPU/Mac if heap crash: --batch 8
+  imgsz: 640  # Ultralytics default; COCO standard
+  patience: 20  # early stopping epochs; Ultralytics default
   save: true
   project: "runs/detect"
-  name: "malaria"
+  name: "malaria_weighted"  # A: malaria (no weights). B: malaria_weighted
+  # mosaic: 1.0  # disable with --mosaic 0 if augmentation crash on Mac
+  # Conditions: A=baseline, B=weighted, C=oversample, D=oversample+weighted
+
+# Class weights for imbalanced data; used by WeightedDetectionLoss (Condition B, D)
+# Inverse-frequency: weight_c = total / (2 * n_c); normalised. compute_class_weights.py
+# Reference: He & Garcia, IEEE TKDE 2009; handling class imbalance
+class_weights: [1.9473, 0.0527]
