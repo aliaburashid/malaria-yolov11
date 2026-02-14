@@ -1,13 +1,21 @@
-# YOLOv11 dataset config for NIH malaria (parasitized vs uninfected RBCs)
-# Path is relative to this file; use absolute path if needed
+# Dataset configuration for YOLOv11 malaria detection (Condition A and B)
+# Format: Ultralytics dataset YAML https://docs.ultralytics.com/datasets/detect/
 
+# Root path; relative to project root (Ultralytics). Output from convert_to_yolo.py.
+# NIH polygon annotations: https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets
 path: data/processed
+
+# Train/val/test; required keys (Ultralytics). Patient-level 70/15/15 from create_splits.py.
+# Split avoids leakage (scikit-learn convention): https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html
 train: images/train
 val: images/val
 test: images/test
 
+# Class names: parasitized (infected RBC) and uninfected RBC
+# NIH cell taxonomy: Rajaraman S et al. PeerJ. 2018;6:e4568 https://peerj.com/articles/4568/
 names:
   0: parasitized
   1: uninfected
 
+# nc must match len(names); Ultralytics https://docs.ultralytics.com/datasets/detect/
 nc: 2
