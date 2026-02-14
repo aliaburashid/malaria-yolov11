@@ -1,0 +1,14 @@
+# YOLOv11 dataset config for Condition C/D: oversampled train list (parasitized images repeated).
+# Val/test unchanged. Build list with: python3 scripts/build_oversampled_train_list.py
+# Source: same as dataset.yaml; train is a .txt file (one path per line, relative to path).
+
+path: data/processed
+train: train_oversampled.txt
+val: images/val
+test: images/test
+
+names:
+  0: parasitized
+  1: uninfected
+
+nc: 2

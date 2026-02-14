@@ -1,6 +1,10 @@
 """
 Create patient-level train/val/test splits for NIH malaria dataset.
 CRITICAL: Split by patient (not image) to avoid data leakage.
+
+Source / references:
+- NIH-NLM Thin Blood Smear (Pf) dataset: https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets
+- Split logic: project-specific (patient-level to prevent leakage).
 """
 
 import csv

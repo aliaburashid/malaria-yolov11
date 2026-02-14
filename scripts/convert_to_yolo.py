@@ -3,6 +3,10 @@ Convert NIH Polygon Set annotations to YOLO format.
 - Reads polygon boundaries and converts to bounding boxes
 - Outputs normalized YOLO format: class_id x_center y_center width height
 - Splits by patient (uses create_splits output)
+
+Source / references:
+- NIH-NLM Thin Blood Smear (Pf) dataset: https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets
+- YOLO label format: https://docs.ultralytics.com/datasets/detect/
 """
 
 import csv
