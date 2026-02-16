@@ -2,6 +2,10 @@
 Verify annotation conversion: draw bounding boxes on a sample image.
 Run after convert_to_yolo.py to spot-check that boxes match cells.
 Requires: pip install Pillow
+
+Source / references:
+- YOLO label format (normalized xywh): https://docs.ultralytics.com/datasets/detect/
+- Drawing logic: project-specific.
 """
 
 from pathlib import Path

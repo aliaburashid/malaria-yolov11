@@ -1,0 +1,24 @@
+# Dataset config for Condition C and D: oversampled train list
+# Parasitized images appear 3x in train list; val/test unchanged
+# Build list: python3 scripts/build_oversampled_train_list.py
+# Format: Ultralytics dataset YAML https://docs.ultralytics.com/datasets/detect/
+
+# Root path; same as dataset.yaml
+# NIH malaria: https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets
+path: data/processed
+
+# train: .txt file with one image path per line (Ultralytics supports dir or .txt)
+# train_oversampled.txt: parasitized images repeated 3x; build_oversampled_train_list.py
+# Val/test: unchanged from dataset.yaml (patient-level splits)
+train: train_oversampled.txt
+val: images/val
+test: images/test
+
+# Class names: parasitized and uninfected RBCs
+# NIH cell taxonomy: Rajaraman S et al. PeerJ. 2018;6:e4568 https://peerj.com/articles/4568/
+names:
+  0: parasitized
+  1: uninfected
+
+# nc must match len(names); Ultralytics https://docs.ultralytics.com/datasets/detect/
+nc: 2
