@@ -4,15 +4,6 @@ draw bounding boxes on a sample image with class labels (parasitized/uninfected)
 Run after convert_to_yolo.py to spot-check that boxes match cells.
 Requires: pip install Pillow
 
-References (same coordinate/drawing idea as this script):
-- Ultralytics YOLO label format: one line per object as
-  class_id x_center y_center width height, normalized 0–1; divide by image
-  width/height for pixels (inverse: multiply norm by w/h).
-  https://docs.ultralytics.com/datasets/detect/
-- Converting YOLO normalized xywh to pixel corners (x1,y1,x2,y2):
-  x1 = (x_center - width/2)*w, y1 = (y_center - height/2)*h, etc.
-  https://stackoverflow.com/questions/56115874/
-  https://stackoverflow.com/questions/64096953/
 - PIL ImageDraw rectangle from corners:
   https://pillow.readthedocs.io/en/stable/reference/ImageDraw.html
 """
