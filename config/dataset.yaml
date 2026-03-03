@@ -12,10 +12,9 @@ val: images/val
 test: images/test
 
 # Class names: parasitized (infected RBC) and uninfected RBC
-# NIH cell taxonomy: Rajaraman S et al. PeerJ. 2018;6:e4568 https://peerj.com/articles/4568/
 names:
   0: parasitized
   1: uninfected
 
-# nc must match len(names); Ultralytics https://docs.ultralytics.com/datasets/detect/
+# nc must match len(names)
 nc: 2

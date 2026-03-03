@@ -5,12 +5,17 @@ B: weighted loss
 C: oversampling (no weighting)
 D: oversampling + weighted loss
 
-Run from project root: python3 scripts/evaluate_conditions.py
+Run from project root:
+  python3 scripts/evaluate_conditions.py              # val set only
+  python3 scripts/evaluate_conditions.py --split test  # test set only
+  python3 scripts/evaluate_conditions.py --both        # val + test (two tables, two CSVs)
 Source: Ultralytics val API and metrics (https://github.com/ultralytics/ultralytics)
 """
 
+import argparse
 import csv
 from pathlib import Path
+from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATASET_PATH = PROJECT_ROOT / "config" / "dataset.yaml"
@@ -69,25 +74,27 @@ def table_from_csv():
     return out
 
 
-def main():
+def run_for_split(split: str, csv_name: Optional[str] = None):
+    """Run evaluation on one split (val or test); print table and save CSV.
+    csv_name: if set, use this filename; else condition_comparison_{split}.csv (or condition_comparison.csv for val).
+    """
+    split_label = "Val" if split == "val" else "Test"
     print("=" * 70)
-    print("Conditions A/B/C/D — Comparison (Val set)")
+    print(f"Conditions A/B/C/D — Comparison ({split_label} set)")
     print("=" * 70)
 
-    # 1) Run validation for each condition that has best.pt
     results = {}
     for label, run_name in CONDITIONS:
         wpath = RUNS_DIR / run_name / "weights" / "best.pt"
         if wpath.exists():
-            results[(label, run_name)] = run_val(wpath)
+            results[(label, run_name)] = run_val(wpath, split=split)
         else:
             results[(label, run_name)] = None
 
-    # 2) Per-class metrics
-    FMT = ".2f"  # two decimal places consistently (academic standard)
+    FMT = ".2f"
     any_res = any(r is not None for r in results.values())
     if any_res:
-        print("\n--- Per-class metrics (from validation, best.pt) ---\n")
+        print(f"\n--- Per-class metrics ({split_label}, best.pt) ---\n")
         for (label, run_name), res in results.items():
             if res is None:
                 print(f"{label}: (no best.pt)\n")
@@ -97,8 +104,7 @@ def main():
                 print(f"  {c['name']:12}  P={c['P']:{FMT}}  R={c['R']:{FMT}}  F1={c['F1']:{FMT}}  mAP50={c['mAP50']:{FMT}}  mAP50-95={c['mAP50-95']:{FMT}}")
             print(f"  {'overall':12}  P={res['overall_P']:{FMT}}  R={res['overall_R']:{FMT}}  mAP50={res['overall_mAP50']:{FMT}}  mAP50-95={res['overall_mAP50-95']:{FMT}}\n")
 
-    # 3) Dissertation table (2 dp, Parasitized R/P/F1, Uninfected R, mAP50, mAP50-95)
-    print("\n--- Dissertation table (Val set) ---\n")
+    print(f"\n--- Dissertation table ({split_label} set) ---\n")
     rows = [(label, res) for (label, _), res in results.items() if res is not None]
     if rows:
         print(f"{'Condition':<28} {'Parasitized R':<12} {'Parasitized P':<12} {'Parasitized F1':<14} {'Uninfected R':<12} {'mAP50':<8} {'mAP50-95':<10}")
@@ -108,21 +114,32 @@ def main():
             print(f"{label:<28} {p0['R']:<12.2f} {p0['P']:<12.2f} {p0['F1']:<14.2f} {p1['R']:<12.2f} {res['overall_mAP50']:<8.2f} {res['overall_mAP50-95']:<10.2f}")
     else:
         print("No best.pt found. Train A/B/C/D then re-run.")
+        return
 
-    # 4) Save table to CSV
-    out_csv = RUNS_DIR / "condition_comparison.csv"
-    if rows:
-        out_csv.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_csv, "w", newline="") as f:
-            w = csv.writer(f)
-            w.writerow(["Model", "Parasitized_R", "Parasitized_P", "Parasitized_F1", "Uninfected_R", "Uninfected_P", "mAP50", "mAP50-95"])
-            for label, res in rows:
-                p0, p1 = res["per_class"][0], res["per_class"][1]
-                slug = label.replace(" ", "_").replace("(", "").replace(")", "").replace("+", "plus")
-                w.writerow([slug, round(p0["R"], 2), round(p0["P"], 2), round(p0["F1"], 2), round(p1["R"], 2), round(p1["P"], 2), round(res["overall_mAP50"], 2), round(res["overall_mAP50-95"], 2)])
-        print(f"\nTable saved to: {out_csv}")
-
+    out_csv = RUNS_DIR / (csv_name or (f"condition_comparison_{split}.csv" if split != "val" else "condition_comparison.csv"))
+    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_csv, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["Model", "Parasitized_R", "Parasitized_P", "Parasitized_F1", "Uninfected_R", "Uninfected_P", "mAP50", "mAP50-95"])
+        for label, res in rows:
+            p0, p1 = res["per_class"][0], res["per_class"][1]
+            slug = label.replace(" ", "_").replace("(", "").replace(")", "").replace("+", "plus")
+            w.writerow([slug, round(p0["R"], 2), round(p0["P"], 2), round(p0["F1"], 2), round(p1["R"], 2), round(p1["P"], 2), round(res["overall_mAP50"], 2), round(res["overall_mAP50-95"], 2)])
+    print(f"\nTable saved to: {out_csv}")
     print("\n" + "=" * 70)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Evaluate A/B/C/D conditions on val or test set.")
+    parser.add_argument("--split", choices=["val", "test"], default="val", help="Split to evaluate (default: val)")
+    parser.add_argument("--both", action="store_true", help="Run on both val and test; save two CSVs.")
+    args = parser.parse_args()
+
+    if args.both:
+        run_for_split("val", csv_name="condition_comparison_val.csv")
+        run_for_split("test", csv_name="condition_comparison_test.csv")
+    else:
+        run_for_split(args.split)
 
 
 if __name__ == "__main__":

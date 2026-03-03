@@ -8,15 +8,15 @@ Source / references:
 - Custom WeightedDetectionLoss and MalariaDetectionTrainer extend ultralytics (same repo).
 """
 
-import argparse
+import argparse  # lets the user run the script with flags like --oversample or --resume
 import torch
 import yaml
 from pathlib import Path
-from ultralytics import YOLO
-from ultralytics.models.yolo.detect import DetectionTrainer
-from ultralytics.utils import DEFAULT_CFG
-from ultralytics.utils.loss import v8DetectionLoss
-from ultralytics.utils.tal import make_anchors
+from ultralytics import YOLO  # Ultralytics YOLO class (loads model + runs train/val)
+from ultralytics.models.yolo.detect import DetectionTrainer  # Ultralytics training loop for detection
+from ultralytics.utils import DEFAULT_CFG # default Ultralytics training config object
+from ultralytics.utils.loss import v8DetectionLoss  # default YOLOv8/11 detection loss used by Ultralytics
+from ultralytics.utils.tal import make_anchors 
 
 # Reproducibility
 SEED = 42
@@ -31,11 +31,13 @@ class WeightedDetectionLoss(v8DetectionLoss):
     """v8DetectionLoss with per-class weighting of cls loss (for imbalanced data)."""
 
     def __init__(self, model, *args, **kwargs):
-        super().__init__(model, *args, **kwargs)
-        self._model_ref = model  # keep ref for class_weights
+        super().__init__(model, *args, **kwargs) # initialise the standard Ultralytics detection loss
+        self._model_ref = model  # store the model so the loss can read model.class_weights later
 
     def get_assigned_targets_and_loss(self, preds, batch):
         """Same as parent but weight cls loss by model.class_weights if set."""
+        # The code first checks if class weights exist on the model.
+        # If they don’t exist, it behaves exactly like the original Ultralytics loss.
         weights = getattr(self._model_ref, "class_weights", None)
         if weights is None:
             return super().get_assigned_targets_and_loss(preds, batch)

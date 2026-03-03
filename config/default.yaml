@@ -1,37 +1,97 @@
-# Malaria YOLOv11 - Training configuration (Condition A and B)
-# Reproducibility: fixed seed; hyperparameters documented per Ultralytics
-# Source: https://docs.ultralytics.com/modes/train/ https://github.com/ultralytics/ultralytics
+# Malaria YOLOv11 - Training configuration (Conditions A & B)
+# This configuration defines how the YOLOv11 model is trained.
+# It controls reproducibility, dataset handling, training behaviour,
+# and how class imbalance is addressed.
 
-# Random seed for reproducibility (NumPy, PyTorch, Python)
-# Reference: machine learning reproducibility best practice
+# Reproducibility
+# This ensures that random operations (weight initialisation,
+# data shuffling, augmentation randomness) are consistent.
+# Re-running training with the same seed should produce
+# very similar results.
 seed: 42
 
-# Data paths and split ratios; used by create_splits.py and convert_to_yolo.py
-# NIH polygon annotations: https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets
-# Split convention: 70/15/15 train/val/test (common in ML; sklearn train_test_split)
+# Dataset configuration
 data:
+  # This path points to the original NIH Thin Blood Smear dataset
+  # containing polygon annotations around each red blood cell.
+  # These polygons are later converted into YOLO bounding boxes.
   nih_polygon_path: "../NIH-NLM-ThinBloodSmearsPf/Polygon Set"
+
+  # This is where the converted YOLO-format dataset is saved.
   output_path: "data/processed"
+
+  # 70% of patients are assigned to the training set.
   train_ratio: 0.70
+
+  # 15% of patients are assigned to the validation set.
   val_ratio: 0.15
+  
+  # 15% of patients are assigned to the test set.
   test_ratio: 0.15
+  # The split is done at patient level to avoid data leakage.
+  # No patient appears in more than one split.
 
-# YOLOv11 training hyperparameters; passed to model.train()
-# Ultralytics docs: https://docs.ultralytics.com/usage/cfg/
-# YOLO11n: nano variant; n/s/m/l = nano/small/medium/large
+
+# YOLOv11 Training Configuration
 training:
-  model: "yolo11n.pt"
-  epochs: 100
-  batch: 16  # reduce to 8 on CPU/Mac if heap crash: --batch 8
-  imgsz: 640  # Ultralytics default; COCO standard
-  patience: 20  # early stopping epochs; Ultralytics default
-  save: true
-  project: "runs/detect"
-  name: "malaria_weighted"  # A: malaria (no weights). B: malaria_weighted
-  # mosaic: 1.0  # disable with --mosaic 0 if augmentation crash on Mac
-  # Conditions: A=baseline, B=weighted, C=oversample, D=oversample+weighted
 
-# Class weights for imbalanced data; used by WeightedDetectionLoss (Condition B, D)
-# Inverse-frequency: weight_c = total / (2 * n_c); normalised. compute_class_weights.py
-# Reference: He & Garcia, IEEE TKDE 2009; handling class imbalance
+  model: "yolo11n.pt"
+  # The YOLOv11 nano (n) model is used.
+  # This is the smallest and fastest YOLOv11 variant.
+  # It is suitable for experimentation and controlled comparisons.
+
+  epochs: 100
+  # The model is trained for 100 full passes over the training data.
+  # This is typically enough for convergence without overfitting.
+
+  batch: 16
+  # 16 images are processed together before updating model weights.
+
+  imgsz: 640
+  # All images are resized to 640x640 before training.
+  # This is the standard YOLO input resolution.
+  # Using the same image size across all conditions ensures fair comparison.
+
+  patience: 20
+  # Early stopping is enabled.
+  # If validation performance does not improve for 20 epochs,
+  # training stops automatically to prevent overfitting.
+
+  save: true
+  # Model weights and training metrics are saved during training.
+
+  project: "runs/detect"
+  # All experiment outputs are stored inside the runs/detect folder.
+
+  name: "malaria_weighted"
+  # This is the experiment name.
+  # Condition A -->  "malaria"
+  # Condition B -->  "malaria_weighted"
+  # Condition C --> "malaria_oversampled"
+  # Condition D --> "malaria_oversampled_weighted"
+  # Each condition is saved separately for fair evaluation.
+
+  # mosaic: 1.0
+  # Mosaic augmentation mixes 4 images together during training.
+  # It increases data diversity but may be disabled if unstable on some systems.
+
+
+# ------------------------------------------------------------
+# Class Imbalance Handling (Conditions B and D only)
+# ------------------------------------------------------------
+
 class_weights: [1.9473, 0.0527]
+# The dataset is heavily imbalanced (~37:1 uninfected to parasitized).
+# To prevent the model from ignoring the minority class (parasitized),
+# class weights are applied during loss computation.
+
+# Index 0 --> parasitized (infected red blood cell)
+# Index 1 --> uninfected red blood cell
+
+# The parasitized class receives a much larger weight (1.9473),
+# meaning mistakes on infected cells are penalised more heavily.
+# The uninfected class receives a smaller weight (0.0527).
+
+# These weights do NOT change the dataset distribution.
+# They only change how strongly each class contributes to the loss.
+# This is known as cost-sensitive learning.

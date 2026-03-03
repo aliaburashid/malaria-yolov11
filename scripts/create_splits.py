@@ -1,7 +1,7 @@
 """
-Create patient-level train/val/test splits for NIH malaria dataset.
+Creates patient-level train/val/test splits for NIH malaria dataset.
 
-CRITICAL: Split by patient (not by image) to avoid data leakage: images from
+CRITICAL: Split is by patient (not by image) to avoid data leakage: images from
 the same patient must not appear in both train and val/test.
 
 References:
@@ -11,31 +11,29 @@ References:
 - Reproducibility: fixed seed (config/default.yaml)
 """
 
+# Reference: Python stdlib https://docs.python.org/3/library/
 import csv
-# Ref: Python stdlib https://docs.python.org/3/library/csv.html
 import random
-# Ref: Python stdlib https://docs.python.org/3/library/random.html
 from pathlib import Path
-# Ref: Python stdlib https://docs.python.org/3/library/pathlib.html
 
 # Fixed seed so the same split is produced every run (reproducibility)
-# Ref: ML reproducibility; matches config/default.yaml seed
+# Reference: ML reproducibility; matches config/default.yaml seed
 SEED = 42
 random.seed(SEED)
 
-# Where this script lives -> project root (two levels up from scripts/)
-# Ref: pathlib resolve(), parent
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # NIH dataset folder: sibling of project; "Polygon Set" = cell annotations
-# Ref: NIH download structure https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets
 NIH_POLYGON_PATH = PROJECT_ROOT.parent / "NIH-NLM-ThinBloodSmearsPf" / "Polygon Set"
-# Output folder for the three CSV files (used by convert_to_yolo.py)
+# is where the splits of patients are saved 
 SPLITS_DIR = PROJECT_ROOT / "data" / "splits"
 
 # Fraction of patients in each split; must sum to 1.0
-# Ref: common convention; config/default.yaml data.train_ratio etc.; sklearn train_test_split
+# 70% of patients will be assigned to the training set.
 TRAIN_RATIO = 0.70
+# 15% of patients will be assigned to the validation set.
 VAL_RATIO = 0.15
+# 15% of patients will be assigned to the test set.
 TEST_RATIO = 0.15
 
 
@@ -51,7 +49,8 @@ def get_patient_ids():
             "Ensure NIH-NLM-ThinBloodSmearsPf is in the project root."
         )
     # List dir names that are folders (each = one patient ID)
-    # Ref: pathlib iterdir(), is_dir()
+    #   .iterdir() -> loops through files/folders in the directory
+    #   .is_dir()  -> keeps only folders (ignores files)
     patient_ids = [d.name for d in NIH_POLYGON_PATH.iterdir() if d.is_dir()]
     # Sort so order is deterministic before we shuffle in create_splits
     return sorted(patient_ids)
@@ -66,6 +65,7 @@ def create_splits():
     patient_ids = get_patient_ids()
     n_patients = len(patient_ids)
 
+    # If no patient folders are found, stop immediately.
     if n_patients == 0:
         raise ValueError("No patient folders found.")
 
@@ -74,21 +74,24 @@ def create_splits():
     random.shuffle(patient_ids)
 
     # How many patients go in each split (train 70%, val 15%, test 15%)
-    # Ref: sequential split (no stratification by infection status here)
+    # The split is done sequentially after shuffling.
     n_train = int(n_patients * TRAIN_RATIO)
     n_val = int(n_patients * VAL_RATIO)
+    # The test count is calculated to ensure total adds up exactly.
     n_test = n_patients - n_train - n_val
 
-    # Slice the shuffled list into three parts
+    # Slice the shuffled list into three non-overlapping groups.
+    # This ensures no patient appears in more than one split.
     train_ids = patient_ids[:n_train]
     val_ids = patient_ids[n_train : n_train + n_val]
     test_ids = patient_ids[n_train + n_val :]
 
-    # Create data/splits/ if it does not exist
-    # Ref: pathlib mkdir(parents=True, exist_ok=True)
+    # Create the data/splits directory if it does not already exist.
+    # parents=True -> create missing parent folders
+    # exist_ok=True -> do not error if folder already exists
     SPLITS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Write one CSV per split: header "patient_id", then one row per patient
+    # For each split (train, val, test), write a CSV file listing the patient IDs.
     # Ref: csv.writer https://docs.python.org/3/library/csv.html#csv.writer
     for split_name, ids in [("train", train_ids), ("val", val_ids), ("test", test_ids)]:
         path = SPLITS_DIR / f"{split_name}_patients.csv"
@@ -99,7 +102,9 @@ def create_splits():
                 writer.writerow([pid])
         print(f"  {split_name}: {len(ids)} patients -> {path}")
 
+    # Print total number of patients processed.
     print(f"\nTotal: {n_patients} patients")
+    # Return lists for optional further use.
     return train_ids, val_ids, test_ids
 
 
