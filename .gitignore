@@ -1,6 +1,11 @@
 # Data (generated; re-run scripts to reproduce)
 data/processed/
 data/verify_samples/
+# 27k cell images (download from NIH; not in repo)
+data/cell_images/
+
+# Docs (local only; do not commit)
+docs/
 
 # Training outputs and weights
 runs/
