@@ -2,3 +2,6 @@
 ultralytics>=8.0.0
 PyYAML>=6.0
 Pillow>=9.0.0
+# Step 2 two-stage classifier (torch usually installed via ultralytics)
+torch>=2.0.0
+torchvision>=0.15.0
