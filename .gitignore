@@ -4,9 +4,9 @@ data/verify_samples/
 # 27k cell images (download from NIH; not in repo)
 data/cell_images/
 
-# Docs (local only; do not commit)
+# Docs / references (local only; do not commit)
 docs/
-
+REFERENCES.md
 # Training outputs and weights
 runs/
 *.pt
