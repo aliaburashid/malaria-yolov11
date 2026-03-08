@@ -7,8 +7,6 @@ data/cell_images/
 # Docs / references (local only; do not commit)
 docs/
 REFERENCES.md
-scripts/two_stage_baseline/COMMIT_PLAN.md
-
 # Training outputs and weights
 runs/
 *.pt
