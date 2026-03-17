@@ -37,6 +37,8 @@ We train the same YOLO model four different ways to see which method works best
 After training, we evaluate all four models on the same validation and test sets.
 This allows a fair comparison of which imbalance method works best.
 
+We first **split the NIH dataset by patient** to avoid data leakage, convert the annotations into **YOLO format**, and handle **class imbalance** using weighting and oversampling. Then we train four versions of the model under different conditions and evaluate them on validation and test sets to directly compare their performance.
+
 ---
 
 ## What happens when the pipeline runs
