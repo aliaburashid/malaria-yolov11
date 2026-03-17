@@ -142,20 +142,17 @@ To address this, we introduced a second experiment using **fine-tuning**.
 
 Fine-tuning means continuing the training of an already trained model using data that is closer to the final task.
 
-In this case:
+In this experiment:
 
-- we start from the classifier trained on the 27k cell dataset
-- we extract cell crops from the thin smear training images using the **ground-truth bounding boxes**
-- we continue training the classifier on these smear-style crops
+- we start with a classifier trained on the 27k cell dataset
+- we then take real cell crops from the smear images using the correct (**ground-truth**) boxes
+- and continue training the classifier on these more realistic images
 
-The **ground-truth bounding boxes** come from the original annotations provided in the NIH malaria dataset.  
-These boxes were manually labelled and indicate the exact location of each red blood cell in the thin smear images.
+The ground-truth boxes are the correct labels from the dataset, drawn by experts to show exactly where each cell is. They are **not** predictions from YOLO.
 
-Importantly, these boxes are **not produced by YOLO**. They are the official dataset labels used to train and evaluate the detector.
+By using these correct boxes, we get clean, well-centred cell images from the smear slides. This helps the classifier learn from data that is closer to what it will see in the real pipeline.
 
-By cropping cells using these annotated boxes, we obtain correctly centred cell images from the smear slides. These crops are closer to the images that the classifier will see during the two-stage pipeline.
-
-Fine-tuning on these smear-style crops helps the classifier adapt to differences between the clean 27k cell images and the crops extracted from full microscope slides.
+So, fine-tuning helps the model move from **clean data → real-world data**, improving its performance.
 
 ---
 
