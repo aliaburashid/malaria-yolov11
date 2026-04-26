@@ -6,9 +6,9 @@ C: oversampling (no weighting)
 D: oversampling + weighted loss
 
 Run from project root:
-  python3 scripts/evaluate_conditions.py              # val set only
-  python3 scripts/evaluate_conditions.py --split test  # test set only
-  python3 scripts/evaluate_conditions.py --both        # val + test (two tables, two CSVs)
+  python3 scripts/class_imbalance/evaluate_conditions.py              # val set only
+  python3 scripts/class_imbalance/evaluate_conditions.py --split test  # test set only
+  python3 scripts/class_imbalance/evaluate_conditions.py --both        # val + test (two tables, two CSVs)
 Source: Ultralytics val API and metrics (https://github.com/ultralytics/ultralytics)
 """
 
@@ -17,7 +17,7 @@ import csv
 from pathlib import Path
 from typing import Optional
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DATASET_PATH = PROJECT_ROOT / "config" / "dataset.yaml"
 RUNS_DIR = PROJECT_ROOT / "runs" / "detect"
 # (label, run_name subdir)

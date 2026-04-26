@@ -21,7 +21,7 @@ from ultralytics.utils.tal import make_anchors
 # Reproducibility
 SEED = 42
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG_PATH = PROJECT_ROOT / "config" / "default.yaml"
 DATASET_PATH = PROJECT_ROOT / "config" / "dataset.yaml"
 DATASET_OVERSAMPLED_PATH = PROJECT_ROOT / "config" / "dataset_oversampled.yaml"
@@ -110,7 +110,7 @@ def train():
     parser.add_argument("--resume", action="store_true", help="Resume from last checkpoint in project/name")
     parser.add_argument("--batch", type=int, default=None, help="Batch size (overrides config)")
     parser.add_argument("--mosaic", type=float, default=None, help="Mosaic augmentation 0-1 (0 disables; can avoid crash)")
-    parser.add_argument("--oversample", action="store_true", help="Condition C: use oversampled train list (parasitized images 3×). Run build_oversampled_train_list.py first.")
+    parser.add_argument("--oversample", action="store_true", help="Condition C: use oversampled train list (parasitized images 3×). Run scripts/class_imbalance/build_oversampled_train_list.py first.")
     parser.add_argument("--weighted", action="store_true", help="With --oversample: Condition D (oversample + class weights). Else ignored.")
     args, _ = parser.parse_known_args()
 
@@ -122,7 +122,7 @@ def train():
     if args.oversample:
         data_path = DATASET_OVERSAMPLED_PATH
         if not data_path.exists():
-            raise FileNotFoundError(f"Oversampled dataset config not found: {data_path}. Run: python3 scripts/build_oversampled_train_list.py")
+            raise FileNotFoundError(f"Oversampled dataset config not found: {data_path}. Run: python3 scripts/class_imbalance/build_oversampled_train_list.py")
         overrides_name = "malaria_oversampled_weighted" if args.weighted else "malaria_oversampled"
     else:
         data_path = DATASET_PATH

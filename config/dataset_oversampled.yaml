@@ -6,7 +6,7 @@
 path: data/processed
 
 # train: .txt file with one image path per line
-# train_oversampled.txt: parasitized images repeated 3x; build_oversampled_train_list.py
+# train_oversampled.txt: parasitized images repeated 3x; scripts/class_imbalance/build_oversampled_train_list.py
 # Val/test: unchanged from dataset.yaml (patient-level splits)
 train: train_oversampled.txt
 val: images/val

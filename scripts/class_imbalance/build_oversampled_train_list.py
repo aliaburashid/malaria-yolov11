@@ -5,7 +5,7 @@ Purpose: Increase the frequency of images that contain at least one parasitized
 (class 0) cell during training.
 
 Strategy:
-If an image contains ≥1 parasitized cell → repeat it multiple times 
+If an image contains ≥1 parasitized cell → repeat it multiple times
 in the training list (.txt file).
 
 Validation and test sets are NOT modified.
@@ -16,7 +16,7 @@ Source / references:
 
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 LABELS_DIR = PROJECT_ROOT / "data" / "processed" / "labels" / "train"
 IMAGES_DIR = PROJECT_ROOT / "data" / "processed" / "images" / "train"
 OUTPUT_FILE = PROJECT_ROOT / "data" / "processed" / "train_oversampled.txt"
@@ -91,7 +91,7 @@ def main():
     print(f"Train labels: {n_parasitized} images with parasitized, {n_uninfected_only} uninfected-only")
     print(f"Oversampled list: {n_total} lines (parasitized images ×{args.repeats + 1})")
     print(f"Written: {OUTPUT_FILE}")
-    print("Use config/dataset_oversampled.yaml and train with: python3 scripts/train.py --oversample")
+    print("Use config/dataset_oversampled.yaml and train with: python3 scripts/class_imbalance/train.py --oversample")
 
 
 if __name__ == "__main__":
