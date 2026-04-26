@@ -17,7 +17,7 @@ ROI = None  # Optional: (x1, y1, x2, y2) to save a cropped *_zoom.jpg; set to e.
 # ----------------------------------------------------------------------
 
 def main():
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parent.parent.parent
     best_pt = root / "runs" / "detect" / "malaria_oversampled_weighted" / "weights" / "best.pt"
     test_dir = root / "data" / "processed" / "images" / "test"
     out_dir = root / "runs" / "detect" / "summary_predictions"

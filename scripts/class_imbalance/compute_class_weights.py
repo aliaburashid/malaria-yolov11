@@ -2,7 +2,7 @@
 Compute class weights for imbalanced training labels (parasitized vs uninfected).
 
 Formula: weight_c = total_cells / (2 * n_c), then normalized so weights sum to 2.
-Rarer class gets higher weight; used in scripts/train.py (WeightedDetectionLoss).
+Rarer class gets higher weight; used in scripts/class_imbalance/train.py (WeightedDetectionLoss).
 
 References:
 - sklearn.utils.class_weight.compute_class_weight 'balanced': inverse frequency
@@ -16,7 +16,7 @@ References:
 import yaml
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 LABELS_DIR = PROJECT_ROOT / "data" / "processed" / "labels" / "train"
 CONFIG_PATH = PROJECT_ROOT / "config" / "default.yaml"
 
@@ -43,7 +43,7 @@ def count_classes():
                 # If class is 0 (parasitized), increment counter
                 if cid == "0":
                     n0 += 1
-                
+
                 # If class is 1 (uninfected), increment counter
                 elif cid == "1":
                     n1 += 1
@@ -64,7 +64,7 @@ def compute_weights(n0: int, n1: int):
     # sklearn 'balanced' and https://ieeexplore.ieee.org/document/5128907. Rare class -> larger weight.
     w0 = total / (2 * n0)  # parasitized
     w1 = total / (2 * n1)  # uninfected
-    
+
     # Normalize weights so they sum to number of classes (2)
     # This keeps loss scale stable during training
     s = w0 + w1
@@ -83,7 +83,7 @@ def main():
         print(f"Labels dir not found: {LABELS_DIR}")
         print("Run create_splits.py and convert_to_yolo.py first.")
         return
-    
+
     # Count class instances
     n0, n1 = count_classes()
     # Compute class weights

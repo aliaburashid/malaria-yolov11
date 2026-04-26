@@ -22,7 +22,7 @@ SEED = 42
 random.seed(SEED)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 # NIH dataset folder: sibling of project; "Polygon Set" = cell annotations
 NIH_POLYGON_PATH = PROJECT_ROOT.parent / "NIH-NLM-ThinBloodSmearsPf" / "Polygon Set"
 # is where the splits of patients are saved 

@@ -15,7 +15,7 @@ from pathlib import Path
 
 # PROJECT_ROOT points to the main project folder (malaria-yolov11).
 # __file__ is this script, then .parent.parent moves up to the project root
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # NIH_POLYGON_PATH points to the original NIH dataset folder.
 # The script assumes the NIH folder is stored next to the project folder.
