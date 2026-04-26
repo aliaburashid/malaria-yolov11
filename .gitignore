@@ -1,5 +1,6 @@
 # Data (generated; re-run scripts to reproduce)
 data/processed/
+data/processed_corrupted/
 data/verify_samples/
 # 27k cell images (download from NIH; not in repo)
 data/cell_images/
