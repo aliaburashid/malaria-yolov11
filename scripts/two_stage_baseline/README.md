@@ -2,298 +2,158 @@
 
 This folder contains scripts for the **two-stage pipeline** used in the malaria detection project. This approach splits the task into **two separate steps** instead of a single end-to-end model.
 
-## What I did in this stage
+---
 
-I built a **second way** to solve the malaria detection task, using **two models instead of one.** The pipeline works in **two steps.**
+## What this stage does
 
-**Step 1 — Detection:** A YOLO model is used to find where the red blood cells are in the image and draw bounding boxes around them.
+The pipeline works in two steps.
 
-**Step 2 — Classification:** Each detected cell is cropped and then passed to a CNN classifier. The CNN classifier predicts one of two states for each cell: **parasitized** or **uninfected.**
+**Step 1 — Detection:** A YOLOv11n model finds where the red blood cells are in the image and draws bounding boxes around them.
+
+**Step 2 — Classification:** Each detected cell is cropped and passed to a ResNet-18 CNN classifier. The classifier predicts one of two labels: **parasitized** or **uninfected**.
 
 ```
 Thin smear image
 ↓
-YOLO detects cells
+YOLOv11n detects cells (bounding boxes only — class head not used)
 ↓
-Crop each detected cell
+Crop each detected cell (padding factor 0.1 on all sides)
 ↓
-CNN classifier predicts: parasitized or uninfected
+ResNet-18 classifier predicts: parasitized or uninfected
 ```
 
-![Two-stage pipeline overview](/scripts/two_stage_baseline/assets/two_stage_pipeline.png)
+![Two-stage pipeline overview](assets/two_stage_pipeline.png)
 
-This is called a two-stage pipeline.
+The YOLO class head output is intentionally discarded. Infection labels come exclusively from the CNN classifier, making the modular structure explicit.
 
 ---
 
-## Why we use a two-stage baseline
+## Why a two-stage baseline
 
-This pipeline is used as a **baseline comparison** with the end-to-end YOLO model.
-
-In an end-to-end model, one network performs both detection and classification at the same time.
-
-In a two-stage pipeline, the tasks are separated:
-
-1. find the cells
-2. classify each cell
-
-By comparing both approaches we can study:
-
-- detection accuracy (how well cells are located)
-- classification accuracy (how well infection is predicted)
-- localisation quality
-- robustness to different image conditions
-
-This helps answer the research question:
-
-> Is it better to detect and classify malaria cells using one end-to-end model, or by separating detection and classification into two stages?
+By comparing the two-stage pipeline with end-to-end YOLO under the same data split and evaluation protocol, any performance difference can be attributed to architectural design rather than experimental variation. Both pipelines use the same YOLOv11n detector trained on the same thin-smear annotations, so the pipeline comparison is attributable to the classifier stage only.
 
 ---
 
 ## The two datasets used
 
-Two different datasets are used because they serve different roles.
+![Thin smear vs 27k cell dataset](assets/two_datasets.png)
 
-![Thin smear vs 27k cell dataset](/scripts/two_stage_baseline/assets/two_datasets.png)
+| Dataset | Patients | Images | Cells | Role |
+|---------|----------|--------|-------|------|
+| NIH-NLM thin smear (Polygon Set) | 33 | 165 | 34,213 | Detector training and full pipeline evaluation |
+| NIH-NLM 27k cropped cells | — | 27,558 | — | Classifier training only |
 
-### 1. Thin blood smear images (193)
-
-These are large microscope images containing many red blood cells.
-
-- Each image contains dozens or hundreds of cells
-- Images come from 193 patients (NIH dataset)
-- Cells are annotated with bounding boxes
-
-These images are used to:
-
-- train the detector (YOLO)
-- run the full two-stage pipeline
-- evaluate detection performance
-
-**Role:** teaches the model where cells are in a full slide.
-
-### 2. The 27k cell dataset
-
-This dataset contains 27,558 individual cell images.
-
-- each image contains one cropped cell
-- each image is labelled as: **parasitized** or **uninfected**
-
-This dataset is used only to train the classifier (Stage 2).
-
-**Role:** teaches the classifier what infected vs uninfected cells look like.
+The 27k dataset was not used to train the thin-smear detector. This separation keeps detector training and crop-level classification as methodologically distinct components.
 
 ---
 
-## Why both datasets are needed
+## Patient-level split
 
-Each dataset teaches a different skill.
+| Split | Patients | Images | Cells |
+|-------|----------|--------|-------|
+| Training | 23 | 115 | 24,653 |
+| Validation | 4 | 20 | 4,118 |
+| Test | 6 | 30 | 5,442 |
 
-| Dataset | Purpose |
-|---------|---------|
-| Thin smear images | Teach YOLO where cells are in a full slide |
-| 27k cell dataset | Teach the classifier how to recognise infection |
-
-**In the final pipeline:**
-
-- **YOLO (trained on thin smears)** finds the cells
-- **CNN classifier (trained on 27k cells)** classifies each cropped cell
-
+Split uses seed 42 for full reproducibility. No patient appears in more than one subset.
 
 ---
 
-## First experiment — Basic two-stage pipeline
-
-In the first experiment, the classifier was trained only on the 27k cell dataset.
-
-This dataset contains clean images where each image shows a single red blood cell.  
-Because the cells are centred and clearly visible, this dataset is useful for learning the visual difference between parasitized and uninfected cells.
-
-After training the classifier, the full two-stage pipeline was run:
-
-1. YOLO detects cells in thin smear images
-2. each detected cell is cropped
-3. the CNN classifier predicts whether the cell is parasitized or uninfected
-
-The results of this pipeline were evaluated on the validation and test sets.
-
----
-
-## Why we added a second experiment
-
-During the first experiment, we noticed a difference between the data used to train the classifier and the data it receives in the pipeline.
-
-The 27k dataset contains clean, centred cell images.  
-However, in the two-stage pipeline the classifier receives crops taken from full smear images.
-
-These crops can look different because they may contain:
-
-- background from neighbouring cells
-- slightly imperfect crop edges
-- differences in lighting or colour
-
-Because of this difference, the classifier trained only on the 27k dataset may not always perform optimally in the full pipeline.
-
-To address this, we introduced a second experiment using **fine-tuning**.
-
----
-
-## Second experiment — Fine-tuned classifier
-
-Fine-tuning means continuing the training of an already trained model using data that is closer to the final task.
-
-In this experiment:
-
-- we start with a classifier trained on the 27k cell dataset
-- we then take real cell crops from the smear images using the correct (**ground-truth**) boxes
-- and continue training the classifier on these more realistic images
-
-The ground-truth boxes are the correct labels from the dataset, drawn by experts to show exactly where each cell is. They are **not** predictions from YOLO.
-
-By using these correct boxes, we get clean, well-centred cell images from the smear slides. This helps the classifier learn from data that is closer to what it will see in the real pipeline.
-
-So, fine-tuning helps the model move from **clean data → real-world data**, improving its performance.
-
----
-
-## Classifier versions used
-
-After this step we have two classifier versions.
+## Two classifier variants
 
 | Model | Description |
-|------|------|
-| classifier_27k | trained only on the 27k cell dataset |
-| classifier_27k_finetuned | trained on the 27k dataset and then fine-tuned on thin smear crops |
+|-------|-------------|
+| `classifier_27k` | Trained only on the 27k cropped-cell dataset |
+| `classifier_27k_finetuned` | Trained on 27k then fine-tuned on ground-truth crops from thin-smear training images |
 
-Comparing these two versions allows us to see whether fine-tuning improves the two-stage pipeline.
-
----
-
-## Pipeline steps and scripts
-
-The full two-stage experiment runs in the following order.
-
-| Step | What it does | Script |
-|-----|-----|-----|
-| Step 1 | Check that the 27k dataset is available and organised | step1_check_cell_images.py |
-| Step 2 | Train the classifier on the 27k dataset | step2_train_classifier_27k.py |
-| Step 2b | Fine-tune the classifier on thin smear crops | step2b_finetune_classifier_thinsmear.py |
-| Step 3 | Run the two-stage pipeline (YOLO detects → crop → classifier predicts) | step3_two_stage_inference.py |
-| Step 4 | Evaluate the results using detection and classification metrics | step4_evaluate_two_stage.py |
+Fine-tuning closes the domain gap between the clean 27k training data and the full-smear crops the classifier receives at inference time (which include surrounding background, partial neighbouring cells, and variable lighting).
 
 ---
 
-## What we measure
+## Evaluation protocol
 
-The evaluation measures three aspects of performance.
+Evaluation uses greedy IoU matching at threshold 0.5, applied consistently to both pipelines using `step4_evaluate_two_stage.py`. Three levels are reported:
 
-### Detection
+| Level | What it measures |
+|-------|-----------------|
+| **Detection F1** | F1 for box matching at IoU ≥ 0.5 (localisation quality) |
+| **Classification accuracy** | Proportion of matched pairs with correct CNN label (classifier quality in isolation) |
+| **End-to-end F1** | F1 requiring both correct localisation and correct classification (full pipeline quality) |
 
-Did YOLO correctly locate the cell?
+Classification accuracy is computed only on matched pairs — missed detections never enter its denominator. End-to-end F1 counts missed detections as false negatives, making it a stricter and more realistic measure of system performance.
 
-Metrics used:
-- Precision
-- Recall
-- F1 score
-
----
-
-### Classification
-
-For each detected cell, did the classifier predict the correct infection label?
-
-Metric used:
-- classification accuracy
-
----
-
-### End-to-end performance
-
-A prediction is counted as correct only if:
-
-1. the predicted bounding box overlaps the real cell (IoU ≥ 0.5)
-2. the classifier predicts the correct infection label
-
-Precision, Recall and F1 are then computed using this stricter definition.
+**Key counts (two-stage fine-tuned, test set):**
+- Ground-truth boxes: 5,442
+- Detection TP (matched pairs): 5,350
+- End-to-end TP (matched + correct label): 5,288
+- Gap of 62 = cells correctly localised but misclassified
+- FP = 917 = 855 unmatched predictions + 62 class-mislabelled
+- FN = 154 missed ground-truth boxes
 
 ---
 
 ## Results
 
-The table below compares the end-to-end YOLO model with the two-stage pipeline.
+### Validation set
 
-| Model | Split | Detection F1 | End-to-end F1 | Classification accuracy |
-|------|------|------|------|------|
-| End-to-end YOLO (Condition D) | val | 0.90 | 0.90 | — |
-| End-to-end YOLO (Condition D) | test | 0.91 | 0.91 | — |
-| Two-stage (27k classifier only) | val | 0.90 | 0.88 | 0.98 |
-| Two-stage (27k classifier only) | test | 0.92 | 0.89 | 0.97 |
-| Two-stage (fine-tuned classifier) | val | 0.90 | 0.90 | 0.99 |
-| Two-stage (fine-tuned classifier) | test | 0.92 | 0.91 | 0.99 |
+| Model | Detection F1 | E2E F1 | Classification accuracy |
+|-------|--------------|--------|------------------------|
+| End-to-end YOLO (Condition D) | 0.90 | 0.89 | — |
+| Two-stage baseline (27k only) | 0.90 | 0.88 | 0.979 |
+| Two-stage fine-tuned | 0.90 | 0.90 | 0.997 |
 
-Sources:
+### Test set
 
-- YOLO results from `condition_comparison_val.csv` and `condition_comparison_test.csv`
-- Two-stage results from `step4_evaluate_two_stage.py`
-
-## Observations
-
-Several patterns appear in the results.
-
-### 1. Detection performance is stable
-
-The YOLO detector performs consistently across all experiments.
-
-- Detection F1 stays around **0.90–0.92** on both validation and test sets.
-- This means the model is able to **locate most red blood cells correctly**.
+| Model | Detection F1 | E2E F1 | Classification accuracy |
+|-------|--------------|--------|------------------------|
+| End-to-end YOLO (Condition D) | 0.92 | 0.86 | 0.930 |
+| Two-stage baseline (27k only) | 0.92 | 0.89 | 0.973 |
+| Two-stage fine-tuned | 0.92 | 0.91 | 0.988 |
 
 ---
 
-### 2. Two-stage pipeline (without fine-tuning) performs slightly worse
+## Key Observations
 
-When using the classifier trained **only on the 27k dataset**:
+**1. Detection F1 is consistent at 0.90–0.92 across all variants.** Both pipelines use the same YOLOv11n detector, so equivalent localisation quality is expected. Any performance difference between pipelines is therefore attributable to the classifier stage only.
 
-- Classification accuracy is very high (**97–98%**)
-- But the **end-to-end F1 drops slightly** to **0.88–0.89**
+**2. The gap between classification accuracy and end-to-end F1.** The baseline classifier achieves 97.3% matched-crop accuracy on the test set but only 0.89 end-to-end F1. This is because classification accuracy excludes missed detections from its denominator. A system reporting 97.3% matched-crop accuracy could still miss a clinically significant number of infected cells when evaluated end-to-end on full smear images.
 
-This suggests that the classifier struggles slightly when working with **cell crops taken from full smear images**, which look different from the clean 27k cell images.
+**3. Fine-tuning improves both matched-crop accuracy and end-to-end F1.** Fine-tuning raises matched-crop accuracy from 97.3% to 98.8% and end-to-end F1 from 0.89 to 0.91. The gap between oracle accuracy (98.9% on ground-truth crops) and matched-crop accuracy (98.8%) confirms the fine-tuned classifier is already near its ceiling on well-formed crops. The remaining end-to-end error is almost entirely due to missed detections.
 
----
+**4. The two-stage fine-tuned pipeline outperforms end-to-end YOLO** on the test set (E2E F1 = 0.91 versus 0.86, a gap of 0.05). The added complexity of a two-stage pipeline is justified when classification accuracy on well-formed crops is the priority.
 
-### 3. Fine-tuning improves the pipeline
-
-After **fine-tuning the classifier on thin smear crops**:
-
-- End-to-end F1 increases to **0.90–0.91**
-- Classification accuracy improves to **99%**
-
-This shows that the classifier adapts better to the **real cell crops produced by the detection stage**.
+**5. Per-class breakdown (fine-tuned, matched crops, test set):**
+- Parasitized matched-crop recall: 92.6% (398/430)
+- Uninfected matched-crop recall: 97.6% (4,890/5,012)
 
 ---
 
-### Overall takeaway
+## Oracle experiment
 
-- **Fine-tuning improves the two-stage pipeline**
-- After fine-tuning, the **two-stage pipeline matches the performance of end-to-end YOLO**
-- However, the **end-to-end model is simpler**, since detection and classification are learned in a single network.
+Both classifiers were evaluated on perfect ground-truth crops, bypassing the detector entirely, to isolate the classifier ceiling from detection errors.
 
----
+| Classifier | Overall accuracy | Parasitized accuracy | Uninfected accuracy |
+|------------|-----------------|---------------------|---------------------|
+| Baseline (27k only) | 96.7% | 99.1% | 96.5% |
+| Fine-tuned | 98.9% | 95.6% | 99.2% |
 
-## Summary
-
-In this stage, a two-stage pipeline was implemented where YOLO first detects cells and a CNN classifier predicts whether each cell is infected.
-
-The classifier was first trained on the 27k cell dataset, and a second experiment introduced fine-tuning using thin smear cell crops to better match the real pipeline inputs.
-
-The results allow a direct comparison between:
-
-- end-to-end YOLO
-- the basic two-stage pipeline
-- the fine-tuned two-stage pipeline
+Fine-tuning raises overall accuracy but reduces parasitized accuracy by 3.5 pp. The fine-tuned model trains on smear-derived crops with variable background and lighting, which improves uninfected performance but introduces confusion on the rarer parasitized class. In a screening context this trade-off warrants attention even when overall accuracy improves.
 
 ---
 
-## How to run (from project root)
+## Pipeline steps and scripts
+
+| Step | Script | What it does |
+|------|--------|--------------|
+| Step 1 | `step1_check_cell_images.py` | Verifies the 27k dataset is available and correctly organised |
+| Step 2 | `step2_train_classifier_27k.py` | Trains ResNet-18 on 27k cells. Best checkpoint saved on strictly improved val accuracy to `runs/classifier_27k/best.pt` |
+| Step 2b | `step2b_finetune_classifier_thinsmear.py` | Continues training on thin-smear GT crops. Best checkpoint to `runs/classifier_27k_finetuned/best.pt` |
+| Step 3 | `step3_two_stage_inference.py` | Runs YOLO detection (conf = 0.25, padding = 0.1) then CNN classification. Saves predictions as JSON |
+| Step 4 | `step4_evaluate_two_stage.py` | Greedy IoU matching at 0.5; reports detection, classification, and end-to-end metrics |
+
+---
+
+## How to Run
 
 ```bash
 # Step 1 — Check 27k dataset
@@ -302,22 +162,22 @@ python3 scripts/two_stage_baseline/step1_check_cell_images.py
 # Step 2 — Train classifier on 27k
 python3 scripts/two_stage_baseline/step2_train_classifier_27k.py
 
-# Step 2b (optional) — Fine-tune on thin smear crops
+# Step 2b — Fine-tune on thin smear crops
 python3 scripts/two_stage_baseline/step2b_finetune_classifier_thinsmear.py
 
 # Step 3 — Two-stage inference (baseline classifier)
 python3 scripts/two_stage_baseline/step3_two_stage_inference.py --split val
 python3 scripts/two_stage_baseline/step3_two_stage_inference.py --split test
 
-# Step 3 with fine-tuned classifier (use suffix so baseline results are not overwritten)
-python3 scripts/two_stage_baseline/step3_two_stage_inference.py --split val --classifier_weights runs/classifier_27k_finetuned/best.pt --suffix finetuned
-python3 scripts/two_stage_baseline/step3_two_stage_inference.py --split test --classifier_weights runs/classifier_27k_finetuned/best.pt --suffix finetuned
+# Step 3 — Two-stage inference (fine-tuned classifier)
+python3 scripts/two_stage_baseline/step3_two_stage_inference.py --split val   --classifier_weights runs/classifier_27k_finetuned/best.pt --suffix finetuned
+python3 scripts/two_stage_baseline/step3_two_stage_inference.py --split test   --classifier_weights runs/classifier_27k_finetuned/best.pt --suffix finetuned
 
-# Step 4 — Evaluate (baseline)
+# Step 4 — Evaluate baseline
 python3 scripts/two_stage_baseline/step4_evaluate_two_stage.py --split val
 python3 scripts/two_stage_baseline/step4_evaluate_two_stage.py --split test
 
-# Step 4 — Evaluate (fine-tuned)
+# Step 4 — Evaluate fine-tuned
 python3 scripts/two_stage_baseline/step4_evaluate_two_stage.py --split val --suffix finetuned
 python3 scripts/two_stage_baseline/step4_evaluate_two_stage.py --split test --suffix finetuned
 ```
@@ -326,11 +186,10 @@ python3 scripts/two_stage_baseline/step4_evaluate_two_stage.py --split test --su
 
 ## Keeping baseline and fine-tuned results separate
 
-Step 3 writes files like `predictions_val.json` and `predictions_test.json`. If you run Step 3 again with the **fine-tuned** classifier, use one of:
+Step 3 writes `predictions_val.json` and `predictions_test.json` by default. Use `--suffix finetuned` to save `predictions_val_finetuned.json` and `predictions_test_finetuned.json` separately. Then pass `--suffix finetuned` to Step 4 to evaluate the correct file.
 
-- **`--suffix finetuned`** — Saves `predictions_val_finetuned.json` and `predictions_test_finetuned.json` in the same folder (recommended).
-- **`--output_dir runs/two_stage_baseline_finetuned`** — Saves all fine-tuned outputs in a different folder.
-
-Then run Step 4 with `--suffix finetuned` or `--predictions <path>` so you evaluate the right file.
+Traceability was confirmed from `predictions_val.json` and `predictions_val_finetuned.json`, verifying baseline and fine-tuned runs used the correct checkpoints.
 
 ---
+
+For the full project layout see the main [README.md](../../README.md) at the project root.
