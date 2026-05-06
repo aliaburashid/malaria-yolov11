@@ -21,7 +21,19 @@ python3 scripts/demo/run_demo.py --weights /path/to/best.pt
 
 Outputs:
 - Prints key metrics to stdout.
-- Writes a small JSON summary under `runs/demo/`.
+- Writes per-checkpoint JSON summaries and a combined CSV under `runs/demo/`.
+
+Run multiple checkpoints explicitly:
+
+```bash
+python3 scripts/demo/run_demo.py --weights /path/to/a/best.pt /path/to/b/best.pt
+```
+
+Or scan a directory recursively for checkpoints:
+
+```bash
+python3 scripts/demo/run_demo.py --weights_dir runs/detect --pattern best.pt
+```
 
 ### 2) Robustness (optional)
 
