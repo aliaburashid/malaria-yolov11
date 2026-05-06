@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -62,6 +63,48 @@ def run_robustness_step2(weights: Path) -> int:
     return int(completed.returncode)
 
 
+def run_two_stage_inference_and_eval(
+    detector_weights: Path,
+    classifier_weights: Path,
+    split: str,
+    suffix: str,
+) -> int:
+    step3 = PROJECT_ROOT / "scripts" / "two_stage_baseline" / "step3_two_stage_inference.py"
+    step4 = PROJECT_ROOT / "scripts" / "two_stage_baseline" / "step4_evaluate_two_stage.py"
+    if not step3.exists() or not step4.exists():
+        print("Missing two-stage scripts under scripts/two_stage_baseline/", file=sys.stderr)
+        return 2
+
+    # Step 3: detector -> crop -> classifier -> predictions JSON
+    cmd_step3 = [
+        sys.executable,
+        str(step3),
+        "--split",
+        split,
+        "--yolo_weights",
+        str(detector_weights),
+        "--classifier_weights",
+        str(classifier_weights),
+        "--suffix",
+        suffix,
+    ]
+    rc3 = subprocess.run(cmd_step3, cwd=str(PROJECT_ROOT)).returncode
+    if rc3 != 0:
+        return int(rc3)
+
+    # Step 4: evaluate predictions from step3 (same suffix)
+    cmd_step4 = [
+        sys.executable,
+        str(step4),
+        "--split",
+        split,
+        "--suffix",
+        suffix,
+    ]
+    rc4 = subprocess.run(cmd_step4, cwd=str(PROJECT_ROOT)).returncode
+    return int(rc4)
+
+
 def iter_weight_files(
     weights: list[Path] | None,
     weights_dir: Path | None,
@@ -99,6 +142,42 @@ def write_summary_csv(out_csv: Path, rows: Iterable[dict]) -> None:
             w.writerow({k: r.get(k) for k in fieldnames})
 
 
+def checkpoint_slug(weights_path: Path) -> str:
+    # Build a stable filename slug from path relative to repo root when possible.
+    try:
+        rel = weights_path.resolve().relative_to(PROJECT_ROOT.resolve())
+        raw = str(rel)
+    except ValueError:
+        raw = str(weights_path.resolve())
+    # Replace path separators and non-safe chars with underscores.
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", raw.strip())
+    return slug.strip("_")
+
+
+def rel_or_abs(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(PROJECT_ROOT.resolve()))
+    except ValueError:
+        return str(path.resolve())
+
+
+def find_classifier_checkpoints(classifiers_dir: Path) -> list[Path]:
+    if not classifiers_dir.exists() or not classifiers_dir.is_dir():
+        return []
+    return sorted(classifiers_dir.glob("classifier_*/best.pt"))
+
+
+def print_inventory(detectors: list[Path], classifiers: list[Path]) -> None:
+    print("\nCheckpoint inventory")
+    print(f"  Detectors found:   {len(detectors)}")
+    for p in detectors:
+        print(f"    - {rel_or_abs(p)}")
+    print(f"  Classifiers found: {len(classifiers)}")
+    for p in classifiers:
+        print(f"    - {rel_or_abs(p)}")
+    print()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run demo evaluation for one or more YOLO checkpoints.")
     parser.add_argument(
@@ -132,6 +211,34 @@ def main() -> int:
         action="store_true",
         help="Also run scripts/robustness/step2_run_yolo_robustness.py if corrupted data exists",
     )
+    parser.add_argument(
+        "--run_two_stage",
+        action="store_true",
+        help="Also run two-stage inference + evaluation for each detector checkpoint",
+    )
+    parser.add_argument(
+        "--classifier_weights",
+        type=Path,
+        default=PROJECT_ROOT / "runs" / "classifier_27k_finetuned" / "best.pt",
+        help="Classifier checkpoint for two-stage run (default: runs/classifier_27k_finetuned/best.pt)",
+    )
+    parser.add_argument(
+        "--two_stage_split",
+        choices=["val", "test"],
+        default="test",
+        help="Dataset split for two-stage evaluation (default: test)",
+    )
+    parser.add_argument(
+        "--classifiers_dir",
+        type=Path,
+        default=PROJECT_ROOT / "runs",
+        help="Directory used to discover classifier checkpoints for inventory (default: runs)",
+    )
+    parser.add_argument(
+        "--list_only",
+        action="store_true",
+        help="Print discovered detector/classifier checkpoints and exit",
+    )
     args = parser.parse_args()
 
     # Resolve weights list from either explicit paths or directory scan.
@@ -152,6 +259,14 @@ def main() -> int:
     if not args.data_yaml.exists():
         print(f"Missing dataset YAML: {args.data_yaml}", file=sys.stderr)
         return 2
+    if args.run_two_stage and not args.classifier_weights.exists():
+        print(f"Missing classifier weights: {args.classifier_weights}", file=sys.stderr)
+        return 2
+
+    classifier_candidates = find_classifier_checkpoints(args.classifiers_dir)
+    print_inventory(weights_list, classifier_candidates)
+    if args.list_only:
+        return 0
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -169,7 +284,7 @@ def main() -> int:
         row = {"weights": str(wpath), **metrics}
         summary_rows.append(row)
 
-        safe_name = wpath.parent.name + "_" + wpath.name
+        safe_name = checkpoint_slug(wpath)
         out_json = args.out_dir / f"val_test_metrics__{safe_name}.json"
         out_json.write_text(json.dumps(row, indent=2) + "\n")
         print(f"Wrote {out_json.relative_to(PROJECT_ROOT)}")
@@ -185,6 +300,24 @@ def main() -> int:
             rc = run_robustness_step2(wpath)
             if rc != 0:
                 print(f"Robustness Step 2 failed with exit code {rc}", file=sys.stderr)
+                return rc
+
+    if args.run_two_stage:
+        for wpath in weights_list:
+            suffix = f"demo_{checkpoint_slug(wpath)}"
+            print("Demo: two-stage inference + evaluation")
+            print(f"  detector:   {wpath}")
+            print(f"  classifier: {args.classifier_weights}")
+            print(f"  split:      {args.two_stage_split}")
+            print(f"  suffix:     {suffix}")
+            rc = run_two_stage_inference_and_eval(
+                detector_weights=wpath,
+                classifier_weights=args.classifier_weights,
+                split=args.two_stage_split,
+                suffix=suffix,
+            )
+            if rc != 0:
+                print(f"Two-stage demo failed with exit code {rc}", file=sys.stderr)
                 return rc
 
     out_csv = args.out_dir / "val_test_metrics_summary.csv"
