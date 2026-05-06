@@ -30,7 +30,7 @@ One issue in the dataset is **class imbalance** — there are more healthy cells
 To handle this, the project tests **class weighting** and **oversampling** strategies to improve how well parasitized cells are detected.  
 Full details and results are in the [class imbalance README](scripts/class_imbalance/README.md).
 
-Results, trained models, and code are in this repo. See the sections below for setup, pipeline steps, and detailed READMEs for [class imbalance](scripts/class_imbalance/README.md) and [two-stage baseline](scripts/two_stage_baseline/README.md).
+Results, trained models, and code are in this repo. See the sections below for setup, pipeline steps, and detailed READMEs for [class imbalance](scripts/class_imbalance/README.md), [two-stage baseline](scripts/two_stage_baseline/README.md), [robustness](scripts/robustness/README.md), [demo](scripts/demo/README.md), and [crowded-field](scripts/crowded_field/README.md).
 
 ## Setup
 
