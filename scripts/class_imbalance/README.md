@@ -1,8 +1,6 @@
 # Class Imbalance Scripts
 
-This folder contains the scripts used to prepare the data, train YOLO models, and compare results for the malaria detection project.
-
-The explanations below use simple language so the pipeline is easy to understand.
+This folder contains the scripts used to prepare the data, train YOLOv11n models, and compare results for the malaria detection project.
 
 ---
 
@@ -13,10 +11,9 @@ In our dataset there are two classes:
 - **Parasitized** — infected red blood cells
 - **Uninfected** — healthy red blood cells
 
-Usually there are more **uninfected cells** than **parasitized cells**. 
-This situation is called **class imbalance**.
+The training split contains 649 parasitized and 24,004 uninfected instances, giving a ratio of approximately 37:1. This imbalance arises from the biology of malaria infection: parasitaemia in Plasmodium falciparum typically affects fewer than 1% of red blood cells even in clinical cases.
 
-If we train the model on this data without any fix, it may learn to say “uninfected” most of the time, because that is the majority class. We want the model to learn both classes well. So we use two kinds of fixes:
+If we train the model on this data without any fix, it may learn to predict "uninfected" most of the time, because that is the majority class. We use two kinds of fixes:
 
 1. **Class weights** — We give more importance to parasitized cells during training so the model pays more attention to them.
 2. **Oversampling** — We repeat images that contain parasitized cells in the training data so the model sees them more often.
@@ -25,257 +22,74 @@ If we train the model on this data without any fix, it may learn to say “uninf
 
 ## The four training conditions (A, B, C, D)
 
-We train the same YOLO model four different ways to see which method works best
+We train the same YOLOv11n model four different ways to see which method works best.
 
 | Condition | What we do | Purpose |
-|-----------|------------|-----|
-| **A** | Train as usual (no weights, no oversampling) | Baseline: see how the model does without any fix. |
-| **B** | Use **class weights** in the loss (parasitized gets higher weight) | So the model cares more about getting parasitized cells right. |
-| **C** | Use **oversampling**: images with parasitized cells appear 3× in the training list | So the model sees parasitized examples more often. |
-| **D** | Use **both** oversampling and class weights | Combine both fixes. |
+|-----------|------------|---------|
+| **A** | Train as usual (no weights, no oversampling) | Baseline: see how the model does without any fix |
+| **B** | Use **class weights** in the loss (parasitized weight = 1.9473, uninfected = 0.0527) | So the model cares more about getting parasitized cells right |
+| **C** | Use **oversampling**: images with parasitized cells appear 3x in the training list (PARASITIZED_EXTRA_REPEATS = 2) | So the model sees parasitized examples more often |
+| **D** | Use **both** oversampling and class weights | Combine both fixes |
 
-After training, we evaluate all four models on the same validation and test sets.
-This allows a fair comparison of which imbalance method works best.
-
-We first **split the NIH dataset by patient** to avoid data leakage, convert the annotations into **YOLO format**, and handle **class imbalance** using weighting and oversampling. Then we train four versions of the model under different conditions and evaluate them on validation and test sets to directly compare their performance.
-
----
-
-## What happens when the pipeline runs
-
-The pipeline follows these steps:
-
-**1. Split the dataset**
-
-Patients are divided into:
-
-- train
-- validation
-- test
-
-Each patient appears in **only one split** to avoid data leakage.
-
----
-
-**2. Convert annotations to YOLO format**
-
-The original NIH annotations use **polygons**. We convert them into:
-
-- bounding boxes
-- YOLO label files
-
-The processed data is saved in:
-
-- `data/processed/`
-
----
-
-**3. (Optional) Verify annotations**
-
-We draw bounding boxes on some images to check that the conversion was correct. The images below are **examples we used to make sure the conversion is correct** (red = parasitized, green = uninfected).
-
-![Verify sample 1](assets/verify_sample_1.jpg)
-![Verify sample 2](assets/verify_sample_2.jpg)
-
----
-
-**4. Handle class imbalance**
-
-We prepare two things:
-
-- class weights calculated from the training labels
-- an oversampled training list
-
-These are used during training when running the model.
-
----
-
-**5. Train the models**
-
-We train the YOLO model four times, once for each condition:
-
-- A
-- B
-- C
-- D
-
-Each training run saves its results in a folder inside:
-
-- `runs/detect/`
-
-Example:
-
-- `runs/detect/malaria`
-- `runs/detect/malaria_weighted`
-- `runs/detect/malaria_oversampled`
-- `runs/detect/malaria_oversampled_weighted`
-
----
-
-**6. Evaluate the models**
-
-Finally we evaluate the best model from each condition on the validation and test sets.
-
-The script `evaluate_conditions.py`:
-
-- Compares all four models
-- Prints the results
-- Saves the results to CSV files
-
-Example output files:
-
-- `condition_comparison_val.csv`
-- `condition_comparison_test.csv`
-
-**Final result**
-
-At the end we have four trained models and a direct comparison of their performance on the same dataset. This allows us to see which method handles class imbalance best.
+After training, we evaluate all four models on the same validation and test sets. This allows a fair comparison of which imbalance method works best.
 
 ---
 
 ## Data Splitting Strategy
 
-To ensure fair evaluation, we split the dataset **by patient**, not by individual images.
+The dataset is split **by patient**, not by individual images, to prevent data leakage.
 
-The dataset is divided approximately as:
+| Split | Patients | Images | Cells |
+|-------|----------|--------|-------|
+| Training | 23 | 115 | 24,653 |
+| Validation | 4 | 20 | 4,118 |
+| Test | 6 | 30 | 5,442 |
+| **Total** | **33** | **165** | **34,213** |
 
-- 70% Training set
-- 15% Validation set
-- 15% Test set
-
-Each patient appears in only one split.
-
-**Why split by patient?**
-
-If images were split randomly, images from the **same patient** could appear in both training and testing. This would allow the model to indirectly see test data during training, which is known as **data leakage**.
-
-Splitting by patient prevents this and ensures the evaluation reflects **true generalisation to unseen patients**.
-
-**Dataset roles**
-
-| Dataset | Purpose |
-|---------|---------|
-| Training set (70%) | Used to train the model and update its parameters |
-| Validation set (15%) | Used during development to compare models and tune experiments |
-| Test set (15%) | Used only for the final evaluation of the chosen model |
-
-## Evaluation Metrics
-
-To evaluate detection performance, we report the following metrics.
-
-### Basic counts
-
-| Metric | Meaning |
-|--------|---------|
-| **TP (True Positive)** | Correct detection (predicted label matches ground truth) |
-| **FP (False Positive)** | Incorrect detection (model predicted infected but it was healthy) |
-| **FN (False Negative)** | Missed detection (infected cell not detected) |
-
-### Recall
-
-Recall measures **how many real infected cells were detected**.
-
-```
-Recall = TP / (TP + FN)
-```
-
-Example: `Recall = 0.86` means the model detected 86% of infected cells.
-
-In medical applications, **high recall is important**, because missing infected cells can be critical.
-
-### Precision
-
-Precision measures how many predicted infected cells are actually infected.
-
-```
-Precision = TP / (TP + FP)
-```
-
-High precision means fewer false alarms.
-
-### F1 Score
-
-The F1 score balances precision and recall.
-
-```
-F1 = 2 × (Precision × Recall) / (Precision + Recall)
-```
-
-This metric is useful when both false positives and false negatives matter.
-
-### Intersection over Union (IoU)
-
-IoU measures how well the predicted bounding box overlaps the true box.
-
-```
-IoU = overlap area / union area
-```
-
-**Typical interpretation:**
-
-| IoU | Meaning |
-|-----|---------|
-| 1.0 | Perfect overlap |
-| ≥ 0.5 | Usually considered a correct detection |
-| ≥ 0.9 | Very precise localisation |
-
-### mAP Metrics
-
-**mAP50**
-
-Mean Average Precision when a detection is considered correct if:
-
-```
-IoU ≥ 0.50
-```
-
-- detection ability
-- approximate box placement
-
-**mAP50-95**
-
-A stricter metric that averages performance over multiple IoU thresholds (0.50–0.95). This metric rewards precise localisation of cells.
+A fixed random seed of 42 is used throughout to ensure full reproducibility.
 
 ---
 
-### Results
+## Evaluation Metrics
 
-Metrics for these experiments were extracted from:
+| Metric | Meaning |
+|--------|---------|
+| **TP** | Correct detection (predicted label matches ground truth at IoU >= 0.5) |
+| **FP** | Unmatched prediction |
+| **FN** | Unmatched ground-truth box |
+| **Recall** | TP / (TP + FN) |
+| **Precision** | TP / (TP + FP) |
+| **F1** | Harmonic mean of precision and recall |
+| **mAP50** | Mean Average Precision at IoU >= 0.5 (PASCAL VOC standard) |
+| **mAP50-95** | Mean Average Precision averaged over IoU thresholds 0.50-0.95 (COCO standard) |
 
-- `runs/detect/condition_comparison_val.csv`
-- `runs/detect/condition_comparison_test.csv`
+In malaria detection, **parasitized recall is the clinically critical metric**. A missed infected cell means a patient may not receive timely treatment.
 
-Values are rounded to two decimal places.
+---
 
-**Validation set Results**
+## Results
 
-| Condition | Parasitized R | Parasitized P | Parasitized F1 | Uninfected R | Uninfected P | Uninfected F1 | mAP50 | mAP50-95 |
-|-----------|---------------|---------------|----------------|--------------|--------------|---------------|-------|----------|
-| A (baseline) | 0.00 | 1.00 | 0.00 | 0.97 | 0.97 | 0.97 | 0.50 | 0.44 |
-| B (weighted) | 0.84 | 0.80 | 0.82 | 0.98 | 0.93 | 0.95 | 0.92 | 0.76 |
-| C (oversampled) | 0.70 | 0.72 | 0.71 | 0.98 | 0.97 | 0.98 | 0.85 | 0.71 |
-| D (oversampled + weighted) | 0.86 | 0.83 | 0.84 | 0.97 | 0.95 | 0.96 | 0.94 | 0.77 |
+### Validation Set
 
-**Test set Results**
+| Condition | Par. P | Par. R | Par. F1 | Uninf. R | mAP50 | mAP50-95 |
+|-----------|--------|--------|---------|----------|-------|----------|
+| A (baseline) | 1.00 | 0.00 | 0.00 | 0.97 | 0.50 | 0.44 |
+| B (weighted) | 0.80 | 0.84 | 0.82 | 0.98 | 0.92 | 0.76 |
+| C (oversampled) | 0.72 | 0.70 | 0.71 | 0.98 | 0.85 | 0.71 |
+| D (oversampled + weighted) | 0.83 | 0.86 | 0.84 | 0.97 | 0.94 | 0.77 |
 
-| Condition | Parasitized R | Parasitized P | Parasitized F1 | Uninfected R | Uninfected P | Uninfected F1 | mAP50 | mAP50-95 |
-|-----------|---------------|---------------|----------------|--------------|--------------|---------------|-------|----------|
-| A (baseline) | 0.36 | 0.19 | 0.25 | 0.99 | 0.75 | 0.85 | 0.58 | 0.48 |
-| B (weighted) | 0.85 | 0.89 | 0.87 | 0.96 | 0.91 | 0.93 | 0.96 | 0.78 |
-| C (oversampled) | 0.81 | 0.71 | 0.76 | 0.95 | 0.98 | 0.96 | 0.90 | 0.77 |
-| D (oversampled + weighted) | 0.87 | 0.91 | 0.89 | 0.98 | 0.90 | 0.94 | 0.96 | 0.79 |
+### Test Set
 
-**Key Finding**
+| Condition | Par. P | Par. R | Par. F1 | Uninf. R | mAP50 | mAP50-95 |
+|-----------|--------|--------|---------|----------|-------|----------|
+| A (baseline) | 0.19 | 0.36 | 0.25 | 0.99 | 0.58 | 0.48 |
+| B (weighted) | 0.89 | 0.85 | 0.87 | 0.96 | 0.96 | 0.79 |
+| C (oversampled) | 0.71 | 0.81 | 0.76 | 0.95 | 0.90 | 0.77 |
+| D (oversampled + weighted) | 0.91 | 0.87 | 0.89 | 0.98 | 0.96 | 0.79 |
 
-Condition D (oversampling + class weights) achieved the best overall performance.
+**Note on Condition A:** Validation parasitized F1 = 0.00 because the model never confidently predicts a parasitized cell on the validation split (precision = 1.00, recall = 0.00). The test set shows F1 = 0.25 due to different patient composition across splits with the same checkpoint. This split-level variability is expected given the small patient count per subset.
 
-It produced:
-
-- the highest parasitized F1 score
-- the best mAP50
-- the best mAP50–95
-
-Therefore, Condition D is selected as the main YOLO model for comparison with the two-stage pipeline.
+**Key Finding:** Condition D (oversampling + class weights) achieves the highest parasitized F1 (0.89) and mAP50 (0.96) on the test set and is selected as the YOLO model for all downstream experiments.
 
 ---
 
@@ -283,31 +97,33 @@ Therefore, Condition D is selected as the main YOLO model for comparison with th
 
 | Script | What it does |
 |--------|--------------|
-| **create_splits.py** | Splits the dataset by **patient** into train / val / test (e.g. 70% / 15% / 15%). So the same patient never appears in more than one set. |
-| **convert_to_yolo.py** | Converts the NIH polygon annotations into YOLO format (one `.txt` file per image with class and box coordinates). Writes images and labels into `data/processed/`. |
-| **verify_conversion.py** | Optional. Draws boxes on a few images so you can check that the conversion looks correct. |
-| **compute_class_weights.py** | Reads the training labels, counts how many parasitized vs uninfected cells there are, and computes **class weights**. You can add these to `config/default.yaml` for Conditions B and D. |
-| **build_oversampled_train_list.py** | Builds a special training list where images that contain at least one parasitized cell appear **3 times**. Used for Conditions C and D. |
-| **train.py** | Trains the YOLO model. You run it once per condition (A, B, C, D) with the right config or flags (e.g. `--oversample` for C, `--oversample --weighted` for D). |
-| **evaluate_conditions.py** | Runs the trained models on val and/or test and writes a comparison table (Precision, Recall, mAP, etc.) to CSV. |
-| **run_publication_predictions.py** | Optional. Runs the model to save prediction figures (e.g. for the dissertation). |
+| **create_splits.py** | Splits the dataset by patient into train / val / test using seed 42. Saves patient lists to `data/splits/`. Prints overlap check confirming zero leakage. |
+| **convert_to_yolo.py** | Converts NIH polygon annotations to YOLO format bounding boxes. Saves to `data/processed/`. Prints per-split image and cell counts on completion. |
+| **verify_conversion.py** | Optional. Draws bounding box overlays on sample images (red = parasitized, green = uninfected) to verify conversion correctness. A label integrity check confirms every processed image has a corresponding YOLO label file across all three subsets, with zero missing labels. |
+| **compute_class_weights.py** | Counts parasitized vs uninfected instances in training labels and computes inverse-frequency class weights normalised to sum to 2. Outputs weights to `config/default.yaml`. |
+| **build_oversampled_train_list.py** | Builds training list where parasitized-positive images appear 3x (PARASITIZED_EXTRA_REPEATS = 2). Saves to `train_oversampled.txt`. |
+| **train.py** | Trains YOLOv11n using Ultralytics Python API. Run once per condition with appropriate flags. Saves results to `runs/detect/`. |
+| **evaluate_conditions.py** | Evaluates all four trained models on validation and test sets. Saves comparison tables to CSV. |
+
+The images below confirm boxes are correctly aligned with cell boundaries and class colours are consistent with annotation labels (red = parasitized, green = uninfected).
+
+![Verify sample 1](assets/verify_sample_1.jpg)
+![Verify sample 2](assets/verify_sample_2.jpg)
 
 ---
 
-## How to Run the Class Imbalance Experiment
+## How to Run
 
-Run the following commands from the project root (`malaria-yolov11/`). If your system uses `python` for Python 3, you can replace `python3` with `python`.
+Run the following from the project root (`malaria-yolov11/`).
 
-### 1. Prepare the Data (run once)
-
-Split the dataset and convert annotations to YOLO format.
+### 1. Prepare the Data
 
 ```bash
 python3 scripts/class_imbalance/create_splits.py
 python3 scripts/class_imbalance/convert_to_yolo.py
 ```
 
-(Optional) Check that bounding boxes look correct:
+Optional - verify annotation conversion:
 
 ```bash
 python3 scripts/class_imbalance/verify_conversion.py
@@ -315,87 +131,45 @@ python3 scripts/class_imbalance/verify_conversion.py
 
 ### 2. Handle Class Imbalance
 
-Compute class weights and create the oversampled training list.
-
 ```bash
 python3 scripts/class_imbalance/compute_class_weights.py
 python3 scripts/class_imbalance/build_oversampled_train_list.py
 ```
 
-These steps prepare the settings needed for Conditions B, C, and D.
-
 ### 3. Train the Models
 
-We train the YOLO model under four conditions.
-
-**Condition A – Baseline**
-
-Standard training (no weighting, no oversampling).
-
+**Condition A - Baseline**
 ```bash
 python3 scripts/class_imbalance/train.py
 ```
 
-**Condition B – Class Weights**
-
+**Condition B - Class Weights**
 ```bash
 python3 scripts/class_imbalance/train.py --weighted
 ```
 
-**Condition C – Oversampling**
-
+**Condition C - Oversampling**
 ```bash
 python3 scripts/class_imbalance/train.py --oversample
 ```
 
-**Condition D – Oversampling + Class Weights**
-
+**Condition D - Oversampling + Class Weights**
 ```bash
 python3 scripts/class_imbalance/train.py --oversample --weighted
 ```
 
-Each run saves results in:
-
-```
-runs/detect/
-```
-
-Example folders:
-
-- `runs/detect/malaria`
-- `runs/detect/malaria_weighted`
-- `runs/detect/malaria_oversampled`
-- `runs/detect/malaria_oversampled_weighted`
+Results saved to `runs/detect/malaria`, `runs/detect/malaria_weighted`, `runs/detect/malaria_oversampled`, `runs/detect/malaria_oversampled_weighted`.
 
 ### 4. Evaluate All Models
-
-After training, run the evaluation script to compare all conditions.
 
 ```bash
 python3 scripts/class_imbalance/evaluate_conditions.py --both
 ```
 
-This script:
-
-- evaluates each trained model on validation and test sets
-- compares all conditions
-- saves the results to CSV files
-
-Example output files:
-
+Output files:
 - `runs/detect/condition_comparison_val.csv`
 - `runs/detect/condition_comparison_test.csv`
 
-### Result
+---
 
-At the end of the pipeline you will have:
-
-- **4 trained YOLO models**
-- **comparison tables of their performance**
-- **CSV files containing the evaluation metrics**
-
-These results are used to determine which imbalance handling method works best.
-
-
-
-For the full project layout and more detail, see the main [README.md](../../README.md) in the project root.
+For the full project layout and environment setup, see the main [README.md](../../README.md) at the project root.
