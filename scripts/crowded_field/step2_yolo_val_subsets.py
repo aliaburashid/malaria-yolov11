@@ -16,6 +16,8 @@ Run from project root (after step1):
 
 from __future__ import annotations
 
+# CLI flags to allow running on arbitrary best.pt without editing source.
+import argparse
 # JSON export for subset metric artifacts.
 import json
 # Path handling independent of current working directory.
@@ -108,9 +110,19 @@ def print_per_class(metrics, label: str) -> None:
 
 
 def main() -> None:
+    # Allow overriding the YOLO checkpoint path for demos/supervisor runs.
+    parser = argparse.ArgumentParser(description="Run YOLO val on crowded vs sparse test subsets.")
+    parser.add_argument(
+        "--weights",
+        type=Path,
+        default=WEIGHTS,
+        help="Path to YOLO weights checkpoint (default: Condition D best.pt)",
+    )
+    args = parser.parse_args()
+
     # Validate required inputs from training (weights) and step1 (split lists).
-    if not WEIGHTS.exists():
-        raise SystemExit(f"Missing weights: {WEIGHTS}")
+    if not args.weights.exists():
+        raise SystemExit(f"Missing weights: {args.weights}")
     if not TXT_CROWDED.exists() or not TXT_SPARSE.exists():
         raise SystemExit(f"Run step1 first. Missing {TXT_CROWDED} or {TXT_SPARSE}")
 
@@ -122,13 +134,13 @@ def main() -> None:
 
     print("Crowded-field Step 2 — YOLO val on subsets (conf=0.25)")
     # Run crowded subset, save json artifact, print class table.
-    m_c = run_val(WEIGHTS, yaml_c, EVAL_ROOT, "yolo_crowded")
+    m_c = run_val(args.weights, yaml_c, EVAL_ROOT, "yolo_crowded")
     save_subset_metrics(m_c, EVAL_ROOT / "yolo_crowded")
     print_per_class(m_c, "Crowded subset")
     print(f"\nSaved run folder: {EVAL_ROOT / 'yolo_crowded'}")
 
     # Run sparse subset, save json artifact, print class table.
-    m_s = run_val(WEIGHTS, yaml_s, EVAL_ROOT, "yolo_sparse")
+    m_s = run_val(args.weights, yaml_s, EVAL_ROOT, "yolo_sparse")
     save_subset_metrics(m_s, EVAL_ROOT / "yolo_sparse")
     print_per_class(m_s, "Sparse subset")
     print(f"\nSaved run folder: {EVAL_ROOT / 'yolo_sparse'}")
