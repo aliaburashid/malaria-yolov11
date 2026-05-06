@@ -54,6 +54,46 @@ Dissertation/
 
 For step-by-step run instructions, see [class imbalance](scripts/class_imbalance/README.md) and [two-stage baseline](scripts/two_stage_baseline/README.md).
 
+## Demo (run saved checkpoints)
+
+Use the demo runner to evaluate one or more saved `best.pt` checkpoints with the project defaults.
+
+### 1) Check which models are available
+
+```bash
+python3 scripts/demo/run_demo.py --weights_dir runs/detect --pattern best.pt --list_only
+```
+
+### 2) Evaluate all detector checkpoints (test split)
+
+```bash
+python3 scripts/demo/run_demo.py --weights_dir runs/detect --pattern best.pt
+```
+
+This writes:
+- per-model JSON metrics under `runs/demo/`
+- combined table `runs/demo/val_test_metrics_summary.csv`
+
+### 3) Optional: run robustness for each detector checkpoint
+
+```bash
+python3 scripts/demo/run_demo.py --weights_dir runs/detect --pattern best.pt --run_robustness
+```
+
+Requires `data/processed_corrupted/` (create with `scripts/robustness/step1_create_corrupted_test_sets.py`).
+
+### 4) Optional: run two-stage pipeline for each detector checkpoint
+
+```bash
+python3 scripts/demo/run_demo.py \
+  --weights_dir runs/detect --pattern best.pt \
+  --run_two_stage \
+  --classifier_weights runs/classifier_27k_finetuned/best.pt \
+  --two_stage_split test
+```
+
+For full demo options and troubleshooting, see `scripts/demo/README.md`.
+
 ## Project structure
 
 ```
@@ -81,14 +121,27 @@ malaria-yolov11/
 │   │   ├── train.py
 │   │   ├── evaluate_conditions.py
 │   │   └── run_publication_predictions.py
+│   ├── demo/                    # Supervisor/demo runner for saved checkpoints
+│   │   ├── README.md
+│   │   └── run_demo.py
+│   ├── crowded_field/           # Crowded vs sparse test subset evaluation
+│   │   ├── README.md
+│   │   ├── step1_split_test_by_crowding.py
+│   │   ├── step2_yolo_val_subsets.py
+│   │   ├── step2b_yolo_subset_greedy_metrics.py
+│   │   ├── step3_two_stage_subset_metrics.py
+│   │   ├── step4_summary.py
+│   │   └── generate_robustness_figure.py
 │   ├── two_stage_baseline/      # Two-stage pipeline (YOLO + CNN classifier)
 │   │   ├── README.md
+│   │   ├── SCRIPTS.md
 │   │   ├── assets/              # Pipeline and dataset diagrams
 │   │   ├── step1_check_cell_images.py
 │   │   ├── step2_train_classifier_27k.py
 │   │   ├── step2b_finetune_classifier_thinsmear.py
 │   │   ├── step3_two_stage_inference.py
-│   │   └── step4_evaluate_two_stage.py
+│   │   ├── step4_evaluate_two_stage.py
+│   │   └── step_oracle_crop_eval.py
 │   ├── crowded_field/           # Crowded vs sparse test subset evaluation
 │   │   ├── README.md
 │   │   ├── step1_split_test_by_crowding.py
@@ -99,6 +152,8 @@ malaria-yolov11/
 │   │   └── generate_robustness_figure.py
 │   └── robustness/              # Image corruption experiments
 │       ├── README.md
+│       ├── corruption_definitions.py
+│       ├── generate_noise_robustness_figure.py
 │       ├── step1_create_corrupted_test_sets.py
 │       ├── step2_run_yolo_robustness.py
 │       ├── step3_run_two_stage_robustness.py
@@ -107,8 +162,8 @@ malaria-yolov11/
 │   ├── detect/                  # YOLO training runs (malaria, malaria_weighted, ...) + CSVs + clean_predictions
 │   ├── classifier_27k/          # Baseline classifier (Step 2)
 │   ├── classifier_27k_finetuned/ # Fine-tuned classifier (Step 2b)
-│   └── two_stage_baseline/      # Two-stage predictions (e.g. predictions_val.json)
-├── results_summary.ipynb        # Tables + clean dissertation figures
+│   ├── two_stage_baseline/      # Two-stage predictions and evaluation outputs
+│   └── demo/                    # Demo metrics outputs (JSON + summary CSV)
 ├── requirements.txt
 └── README.md
 ```
