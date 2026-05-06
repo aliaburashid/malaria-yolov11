@@ -1,0 +1,15 @@
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/146C47P8thin_Original_Motic_IMG_20150714_093512.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/146C47P8thin_Original_Motic_IMG_20150714_093600.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/146C47P8thin_Original_Motic_IMG_20150714_093636.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/146C47P8thin_Original_Motic_IMG_20150714_093806.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/209C68P29N_ThinF_IMG_20150819_133236.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/209C68P29N_ThinF_IMG_20150819_133350.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/209C68P29N_ThinF_IMG_20150819_133447.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/306C213ThinF_IMG_20151106_112252.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/306C213ThinF_IMG_20151106_112422.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/306C213ThinF_IMG_20151106_112603.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/306C213ThinF_IMG_20151106_112759.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/306C213ThinF_IMG_20151106_112853.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/377C238NThinF_IMG_20151207_114038.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/377C238NThinF_IMG_20151207_114345.jpg
+/Users/alia/Desktop/Dissertation/malaria-yolov11/data/processed/images/test/377C238NThinF_IMG_20151207_114444.jpg
