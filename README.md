@@ -89,6 +89,14 @@ malaria-yolov11/
 │   │   ├── step2b_finetune_classifier_thinsmear.py
 │   │   ├── step3_two_stage_inference.py
 │   │   └── step4_evaluate_two_stage.py
+│   ├── crowded_field/           # Crowded vs sparse test subset evaluation
+│   │   ├── README.md
+│   │   ├── step1_split_test_by_crowding.py
+│   │   ├── step2_yolo_val_subsets.py
+│   │   ├── step2b_yolo_subset_greedy_metrics.py
+│   │   ├── step3_two_stage_subset_metrics.py
+│   │   ├── step4_summary.py
+│   │   └── generate_robustness_figure.py
 │   └── robustness/              # Image corruption experiments
 │       ├── README.md
 │       ├── step1_create_corrupted_test_sets.py
