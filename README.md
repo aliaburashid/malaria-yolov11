@@ -32,6 +32,8 @@ Full details and results are in the [class imbalance README](scripts/class_imbal
 
 Results, trained models, and code are in this repo. See the sections below for setup, pipeline steps, and detailed READMEs for [class imbalance](scripts/class_imbalance/README.md) and [two-stage baseline](scripts/two_stage_baseline/README.md).
 
+Note: the crowded-field evaluation workflow is maintained on the `crowded_field` branch.
+
 ## Setup
 
 ### 1. Environment
@@ -124,6 +126,14 @@ malaria-yolov11/
 │   ├── demo/                    # Supervisor/demo runner for saved checkpoints
 │   │   ├── README.md
 │   │   └── run_demo.py
+│   ├── crowded_field/           # Crowded vs sparse test subset evaluation
+│   │   ├── README.md
+│   │   ├── step1_split_test_by_crowding.py
+│   │   ├── step2_yolo_val_subsets.py
+│   │   ├── step2b_yolo_subset_greedy_metrics.py
+│   │   ├── step3_two_stage_subset_metrics.py
+│   │   ├── step4_summary.py
+│   │   └── generate_robustness_figure.py
 │   ├── two_stage_baseline/      # Two-stage pipeline (YOLO + CNN classifier)
 │   │   ├── README.md
 │   │   ├── SCRIPTS.md
