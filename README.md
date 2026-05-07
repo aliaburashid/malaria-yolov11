@@ -1,191 +1,160 @@
-# Malaria YOLOv11 — End-to-End Detection & Classification
+# Malaria Detection — End-to-End vs Two-Stage Pipeline
 
-## Project overview & problem motivation
+## What this project does
 
-This project is about **improving how we detect malaria from microscope blood images**. Right now, the process is **slow and depends on experience** — experts look at slides by hand. The goal is to **automate this** by **comparing two different approaches**.
+This project compares two approaches to automatically detecting malaria-infected cells in thin blood smear microscope images, using the NIH-NLM dataset.
 
-## First approach: end-to-end model
+**The problem:** Manual microscopy for malaria diagnosis is slow and depends heavily on operator expertise. Automated systems could support diagnosis, but it is unclear whether a single integrated model or a modular two-step approach performs better — especially when image quality is variable.
 
-The first approach is an **end-to-end model using YOLOv11**. A **single network** does everything: it finds the red blood cells and directly classifies them as **parasitized** or **uninfected**.
+**The research question:** How does end-to-end detection-classification with YOLOv11 compare to a two-stage pipeline in terms of accuracy, localisation quality, and robustness to image quality variation?
 
-## Second approach: two-stage pipeline
+---
 
-The second approach is a **two-stage pipeline**. First, **YOLO detects where the cells are**. Then, each detected cell is **cropped** and passed into a **separate CNN classifier** that decides if it is infected or not.
+## The two approaches
 
-## Research question
+### Approach 1 — End-to-end model (YOLOv11n)
 
-**Is it better to do everything in one model, or to split detection and classification into two steps?**
+A single YOLOv11n network simultaneously finds cells and classifies each one as **parasitized** or **uninfected** in one forward pass.
 
-## Evaluation & key outputs
+### Approach 2 — Two-stage pipeline (YOLOv11n + ResNet-18)
 
-To make the comparison fair, both approaches are **trained and evaluated on the same NIH dataset**. They are tested on:
+The task is split into two steps:
+1. YOLOv11n detects where the cells are (bounding boxes only — classification head not used)
+2. Each detected cell is cropped and passed to a ResNet-18 classifier which predicts parasitized or uninfected
 
-- how **accurately** they detect cells
-- how **well** they classify infection
-- how **robust** they are when image quality changes (e.g. blur, noise, or lighting differences)
+Both pipelines use the same YOLOv11n detector trained on the same data, so any performance difference is attributable to the classifier stage only.
 
-### Class imbalance (briefly)
+---
 
-One issue in the dataset is **class imbalance** — there are more healthy cells than infected ones.  
-To handle this, the project tests **class weighting** and **oversampling** strategies to improve how well parasitized cells are detected.  
-Full details and results are in the [class imbalance README](scripts/class_imbalance/README.md).
+## Key results
 
-Results, trained models, and code are in this repo. See the sections below for setup, pipeline steps, and detailed READMEs for [class imbalance](scripts/class_imbalance/README.md), [two-stage baseline](scripts/two_stage_baseline/README.md), [robustness](scripts/robustness/README.md), [demo](scripts/demo/README.md), and [crowded-field](scripts/crowded_field/README.md).
+| Model | Detection F1 | End-to-end F1 | Matched-crop accuracy |
+|-------|--------------|---------------|-----------------------|
+| YOLO Condition D (end-to-end) | 0.92 | 0.86 | 0.930 |
+| Two-stage baseline (27k only) | 0.92 | 0.89 | 0.973 |
+| Two-stage fine-tuned | 0.92 | 0.91 | 0.988 |
+
+**Main finding:** Both pipelines localise cells equally well. The two-stage fine-tuned pipeline outperforms end-to-end YOLO on clean images (E2E F1 = 0.91 versus 0.86), but both systems are vulnerable to strong Gaussian noise and respond differently to photometric shift.
+
+---
+
+## Experiments
+
+| Experiment | What it tests | Results |
+|------------|--------------|---------|
+| Class imbalance (Conditions A–D) | Four strategies for handling the 37:1 parasitized/uninfected imbalance | Condition D (oversampling + class weights) achieves best parasitized F1 = 0.89 |
+| Pipeline comparison | End-to-end YOLO vs two-stage pipeline on clean test images | Two-stage fine-tuned wins by 0.05 E2E F1 |
+| Robustness | Both pipelines on 15 corrupted test conditions (5 types × 3 severities) | Both robust to blur/JPEG; both fail under strong noise; diverge under photometric shift |
+| Crowded vs sparse fields | Whether cell density affects performance | Neither pipeline struggles — positive deltas explained by image composition |
+
+---
+
+## Dataset
+
+| Split | Patients | Images | Cells |
+|-------|----------|--------|-------|
+| Training | 23 | 115 | 24,653 |
+| Validation | 4 | 20 | 4,118 |
+| Test | 6 | 30 | 5,442 |
+| **Total** | **33** | **165** | **34,213** |
+
+Two datasets are used:
+- **NIH-NLM thin blood smear dataset** (Polygon Set, 33 patients) — detector training and full pipeline evaluation
+- **NIH-NLM 27k cropped cell dataset** (27,558 images) — classifier training only
+
+All splits are by patient using seed 42 to prevent data leakage.
+
+---
 
 ## Setup
 
-### 1. Environment
+### 1. Install dependencies
 
 ```bash
 cd malaria-yolov11
 pip install -r requirements.txt
 ```
 
-### 2. Dataset
+### 2. Dataset location
 
-Ensure the NIH dataset is in the parent folder:
+Place the NIH dataset in the parent folder:
 
 ```
 Dissertation/
-├── malaria-yolov11/     # this project
+├── malaria-yolov11/     ← this project
 └── NIH-NLM-ThinBloodSmearsPf/
     └── Polygon Set/
 ```
 
-For step-by-step run instructions, see [class imbalance](scripts/class_imbalance/README.md) and [two-stage baseline](scripts/two_stage_baseline/README.md).
+---
 
-## Demo (run saved checkpoints)
+## Running the experiments
 
-Use the demo runner to evaluate one or more saved `best.pt` checkpoints with the project defaults.
+Each experiment has its own folder with a README and numbered scripts. Run them in order from the project root.
 
-### 1) Check which models are available
+| Experiment | Folder | Start here |
+|------------|--------|-----------|
+| Class imbalance | `scripts/class_imbalance/` | [README](scripts/class_imbalance/README.md) |
+| Two-stage pipeline | `scripts/two_stage_baseline/` | [README](scripts/two_stage_baseline/README.md) |
+| Robustness | `scripts/robustness/` | [README](scripts/robustness/README.md) |
+| Crowded field | `scripts/crowded_field/` | [README](scripts/crowded_field/README.md) |
+| Evaluate checkpoints | `scripts/demo/` | [README](scripts/demo/README.md) |
 
-```bash
-python3 scripts/demo/run_demo.py --weights_dir runs/detect --pattern best.pt --list_only
-```
-
-### 2) Evaluate all detector checkpoints (test split)
-
-```bash
-python3 scripts/demo/run_demo.py --weights_dir runs/detect --pattern best.pt
-```
-
-This writes:
-- per-model JSON metrics under `runs/demo/`
-- combined table `runs/demo/val_test_metrics_summary.csv`
-
-### 3) Optional: run robustness for each detector checkpoint
-
-```bash
-python3 scripts/demo/run_demo.py --weights_dir runs/detect --pattern best.pt --run_robustness
-```
-
-Requires `data/processed_corrupted/` (create with `scripts/robustness/step1_create_corrupted_test_sets.py`).
-
-### 4) Optional: run two-stage pipeline for each detector checkpoint
-
-```bash
-python3 scripts/demo/run_demo.py \
-  --weights_dir runs/detect --pattern best.pt \
-  --run_two_stage \
-  --classifier_weights runs/classifier_27k_finetuned/best.pt \
-  --two_stage_split test
-```
-
-For full demo options and troubleshooting, see `scripts/demo/README.md`.
+---
 
 ## Project structure
 
 ```
 malaria-yolov11/
 ├── config/
-│   ├── default.yaml            # Training hyperparameters, class_weights
-│   ├── dataset.yaml             # YOLO dataset (Conditions A, B)
-│   └── dataset_oversampled.yaml # Oversampled train list (Conditions C, D)
+│   ├── default.yaml                  # Training hyperparameters and class weights
+│   ├── dataset.yaml                  # YOLO dataset config (Conditions A, B)
+│   └── dataset_oversampled.yaml      # Oversampled train list (Conditions C, D)
 ├── data/
-│   ├── splits/                  # train/val/test patient IDs (create_splits.py)
-│   ├── processed/               # YOLO images & labels (convert_to_yolo.py)
-│   │   ├── images/              # train, val, test
-│   │   └── labels/              # train, val, test
-│   ├── cell_images/             # 27k cell dataset (two-stage classifier; Parasitized/, Uninfected/)
-│   └── verify_samples/          # Sample images with boxes (verify_conversion.py)
+│   ├── splits/                       # Patient ID lists (train/val/test)
+│   ├── processed/                    # YOLO-format images and labels
+│   │   ├── images/                   # train, val, test
+│   │   └── labels/                   # train, val, test
+│   ├── cell_images/                  # 27k cropped cell dataset (Parasitized/, Uninfected/)
+│   ├── processed_corrupted/          # Corrupted test sets for robustness experiment
+│   ├── crowded_field/                # Cell count CSV and crowded/sparse path lists
+│   └── verify_samples/               # Annotation verification overlays
 ├── scripts/
-│   ├── class_imbalance/         # Data prep, training (A/B/C/D), evaluation
-│   │   ├── README.md
-│   │   ├── assets/              # Example verify images for README
-│   │   ├── create_splits.py
-│   │   ├── convert_to_yolo.py
-│   │   ├── verify_conversion.py
-│   │   ├── compute_class_weights.py
-│   │   ├── build_oversampled_train_list.py
-│   │   ├── train.py
-│   │   ├── evaluate_conditions.py
-│   │   └── run_publication_predictions.py
-│   ├── demo/                    # Supervisor/demo runner for saved checkpoints
-│   │   ├── README.md
-│   │   └── run_demo.py
-│   ├── crowded_field/           # Crowded vs sparse test subset evaluation
-│   │   ├── README.md
-│   │   ├── step1_split_test_by_crowding.py
-│   │   ├── step2_yolo_val_subsets.py
-│   │   ├── step2b_yolo_subset_greedy_metrics.py
-│   │   ├── step3_two_stage_subset_metrics.py
-│   │   ├── step4_summary.py
-│   │   └── generate_robustness_figure.py
-│   ├── two_stage_baseline/      # Two-stage pipeline (YOLO + CNN classifier)
-│   │   ├── README.md
-│   │   ├── SCRIPTS.md
-│   │   ├── assets/              # Pipeline and dataset diagrams
-│   │   ├── step1_check_cell_images.py
-│   │   ├── step2_train_classifier_27k.py
-│   │   ├── step2b_finetune_classifier_thinsmear.py
-│   │   ├── step3_two_stage_inference.py
-│   │   ├── step4_evaluate_two_stage.py
-│   │   └── step_oracle_crop_eval.py
-│   ├── crowded_field/           # Crowded vs sparse test subset evaluation
-│   │   ├── README.md
-│   │   ├── step1_split_test_by_crowding.py
-│   │   ├── step2_yolo_val_subsets.py
-│   │   ├── step2b_yolo_subset_greedy_metrics.py
-│   │   ├── step3_two_stage_subset_metrics.py
-│   │   ├── step4_summary.py
-│   │   └── generate_robustness_figure.py
-│   └── robustness/              # Image corruption experiments
-│       ├── README.md
-│       ├── corruption_definitions.py
-│       ├── generate_noise_robustness_figure.py
-│       ├── step1_create_corrupted_test_sets.py
-│       ├── step2_run_yolo_robustness.py
-│       ├── step3_run_two_stage_robustness.py
-│       └── step4_report_robustness.py
+│   ├── class_imbalance/              # Data prep, training (A/B/C/D), evaluation
+│   ├── two_stage_baseline/           # Two-stage pipeline (detector + classifier)
+│   ├── robustness/                   # Image corruption experiments
+│   ├── crowded_field/                # Crowded vs sparse field evaluation
+│   └── demo/                         # Evaluate saved checkpoints
 ├── runs/
-│   ├── detect/                  # YOLO training runs (malaria, malaria_weighted, ...) + CSVs + clean_predictions
-│   ├── classifier_27k/          # Baseline classifier (Step 2)
-│   ├── classifier_27k_finetuned/ # Fine-tuned classifier (Step 2b)
-│   ├── two_stage_baseline/      # Two-stage predictions and evaluation outputs
-│   └── demo/                    # Demo metrics outputs (JSON + summary CSV)
+│   ├── detect/                       # YOLO training outputs per condition
+│   ├── classifier_27k/               # Baseline classifier checkpoint
+│   ├── classifier_27k_finetuned/     # Fine-tuned classifier checkpoint
+│   ├── two_stage_baseline/           # Two-stage predictions and evaluation outputs
+│   ├── robustness/                   # Robustness experiment CSVs
+│   ├── crowded_field/                # Crowded field evaluation CSVs
+│   └── demo/                         # Demo metrics outputs
 ├── requirements.txt
 └── README.md
 ```
 
+---
+
 ## Reproducibility
 
-- Random seed: 42 (set in `create_splits.py` and `config/default.yaml`)
-- Splits are by patient to avoid data leakage
-- Config files record hyperparameters
+- Random seed: 42 throughout all scripts
+- Patient-level splits prevent data leakage
+- All hyperparameters recorded in `config/default.yaml`
+- Full environment specification in `requirements.txt`
 
 ---
 
-## Dataset and attribution
+## Dataset attribution
 
-The thin blood smear images and annotations are from the **NIH-NLM Thin Blood Smears (P. falciparum)** dataset.
+**NIH-NLM Thin Blood Smears (Plasmodium falciparum)**
+National Library of Medicine, National Institutes of Health, Bethesda, MD, USA.
 
-**Source:** National Library of Medicine, National Institutes of Health, Bethesda, MD, USA.
+Data available at: https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets
 
-**Data:** [NIH malaria datasets](https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets) — Polygon Set (193 patients, manual polygon annotations of red blood cells).
+If you use this data, please cite:
 
-We request that any publication using this data attribute the source as above and cite:
-
-> Yasmin M. Kassim, Kannappan Palaniappan, Feng Yang, Mahdieh Poostchi, Nila Palaniappan, Richard J. Maude, Sameer Antani, Stefan Jaeger. **Clustering-Based Dual Deep Learning Architecture for Detecting Red Blood Cells in Malaria Diagnostic Smears.** *IEEE Journal of Biomedical and Health Informatics*, 2020.
-
-RBCNet code (cell detection): https://github.com/nlm-malaria/RBCNet
+> Kassim, Y.M., Palaniappan, K., Yang, F., Poostchi, M., Palaniappan, N., Maude, R.J., Antani, S. and Jaeger, S. 2021. Clustering-based dual deep learning architecture for detecting red blood cells in malaria diagnostic smears. *IEEE Journal of Biomedical and Health Informatics*, 25(5), pp.1735–1746.
